@@ -1,0 +1,27 @@
+# Ignore the local database
+pb_data/
+
+# Ignore local migrations (optional, usually you want to keep these unless they are auto-generated)
+pb_migrations/
+
+# Ignore compiled binaries
+myapp
+*.exe
+
+# Ignore env files
+.env
+
+# macOS
+.DS_Store
+backfill-work/
+
+# scripts/updater: binaries and deploy state
+/goyangi
+/goyangi.next
+/goyangi.prev
+/goyangi-updater
+.deploy/
+logs/
+
+# Local Claude Code settings
+.claude/
