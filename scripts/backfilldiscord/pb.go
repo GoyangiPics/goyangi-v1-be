@@ -301,6 +301,29 @@ type directory struct {
 	idolName  map[string]string
 
 	mu sync.Mutex // guards uploaders/tags while lookupOrCreate adds to them
+
+	detectOnce sync.Once
+	det        *bot.Detector
+}
+
+// detector is the bot's free-text idol detector over this directory, built on
+// first use.
+func (d *directory) detector() *bot.Detector {
+	d.detectOnce.Do(func() {
+		groups := make([]bot.DetectGroup, 0, len(d.groups))
+		for _, g := range d.groups {
+			groups = append(groups, bot.DetectGroup{ID: g.id, Name: g.name, Aliases: g.aliases})
+		}
+		idols := make([]bot.DetectIdol, 0, len(d.idols))
+		for _, i := range d.idols {
+			idols = append(idols, bot.DetectIdol{
+				ID: i.id, Name: i.name, Aliases: i.aliases,
+				GroupID: i.groupID, GroupName: d.groupName[i.groupID],
+			})
+		}
+		d.det = bot.NewDetector(groups, idols)
+	})
+	return d.det
 }
 
 type dirEntry struct {

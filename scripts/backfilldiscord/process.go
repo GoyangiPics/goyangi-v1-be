@@ -37,6 +37,7 @@ type runner struct {
 	previewFmt string
 	workdir    string
 	followups  bool
+	replies    bool          // collect same-author replies (-replies)
 	origin     string        // what the records are stamped with: script or discord
 	sem        chan struct{} // bounds concurrent item encodes
 
@@ -45,6 +46,11 @@ type runner struct {
 	// joins it instead of opening another. Hits arrive oldest first, which is
 	// what makes a single pass over them equivalent to the live bot's clock.
 	chains map[snowflake.ID]*chain
+
+	// consumed is every message already folded into a set as a reply or a bare
+	// follow-up. A scan visits every message with media, so without this the
+	// same message would come round again as a candidate of its own.
+	consumed map[snowflake.ID]bool
 
 	verified sync.Once
 }
@@ -102,11 +108,41 @@ func (r *runner) processHit(ctx context.Context, hit discord.Message, replies []
 		}
 	}
 	meta := bot.RolesToMetadata(roleNames)
+	detected := false
 	if err := bot.ExtractMetadata(hit.Content, &meta); err != nil {
-		// The live bot falls through to text detection here; the backfill
-		// doesn't guess. Reported so it can be reuploaded by hand if wanted.
-		skip(fmt.Sprintf("no usable idol/group in the pinged roles %v", roleNames))
-		return
+		// Same fall-through as bot.prepareIngestion: a role ping whose roles name
+		// no idol (a group-only role), or a message with no ping at all, goes to
+		// text detection. An @-mention of the bot is the exception — it states
+		// its own metadata and gets no guess.
+		if bot.BotMentionedIn(hit.Content, r.dc.appID.String()) {
+			skip("@-mention of the bot without usable idol/group lines")
+			return
+		}
+		if len(bot.CollectMedia(hit)) == 0 {
+			skip("no ingestible media")
+			return
+		}
+		m, ok := r.detectFromText(hit, roleNames)
+		if !ok {
+			if len(roleNames) > 0 {
+				skip(fmt.Sprintf("no usable idol/group in the pinged roles %v, and the text names none", roleNames))
+			} else {
+				skip("no ping, and the text names no idol")
+			}
+			return
+		}
+		meta, detected = m, true
+		// A pinged hit's replies were looked up with the whole batch; a message
+		// found by its text was not in it, so its replies are fetched now.
+		if r.replies && len(replies) == 0 {
+			rm, err := r.dc.repliesTo(ctx, []discord.Message{hit})
+			if err != nil {
+				st.failed++
+				log.Printf("   ❌ reply lookup: %v", err)
+				return
+			}
+			replies = rm[hit.ID]
+		}
 	}
 	rel := r.dir.resolve(bot.SplitTrim(meta.Idol), bot.SplitTrim(meta.Group))
 	if len(rel.idolIDs) == 0 || len(rel.groupIDs) == 0 {
@@ -125,7 +161,7 @@ func (r *runner) processHit(ctx context.Context, hit discord.Message, replies []
 	// sameSubject case). Spends a follow-up slot like any other continuation. ──
 	subject := subjectKey(rel)
 	var joined *chain
-	if c := r.chains[hit.Author.ID]; c != nil && c.subject == subject &&
+	if c := r.chains[hit.Author.ID]; !detected && c != nil && c.subject == subject &&
 		hit.CreatedAt.Sub(c.lastAt) <= bot.ChainWindow && c.attached < bot.ChainMaxFollowUps {
 		joined = c
 		c.attached++
@@ -201,6 +237,10 @@ func (r *runner) processHit(ctx context.Context, hit discord.Message, replies []
 		for _, m := range fus {
 			log.Printf("   ＋ follow-up %s (%s later)", jumpLink(guildID, m), m.CreatedAt.Sub(hit.CreatedAt).Round(time.Second))
 		}
+	}
+
+	for _, m := range extra {
+		r.consumed[m.ID] = true
 	}
 
 	var items []plannedItem
@@ -301,6 +341,29 @@ func (r *runner) processHit(ctx context.Context, hit discord.Message, replies []
 	if setID := r.commitSet(ctx, plan, joinSetID, st); setID != "" {
 		c.setID = setID
 	}
+}
+
+// detectFromText is bot.textDetection: the idol and group a message names in
+// its own words, plus the pinged role names so a group-only ping still
+// contributes its group. Every hit is logged with the string that matched,
+// because this is the one rule that attributes something nobody stated.
+func (r *runner) detectFromText(hit discord.Message, roleNames []string) (bot.Metadata, bool) {
+	content := hit.Content
+	if len(roleNames) > 0 {
+		content += "\n" + strings.Join(roleNames, "\n")
+	}
+	idols, groups, matched, ok := r.dir.detector().Detect(content)
+	if !ok {
+		return bot.Metadata{}, false
+	}
+	meta := bot.Metadata{Idol: strings.Join(idols, ", "), Group: strings.Join(groups, ", ")}
+	// `key: value` lines still win — someone who wrote them meant them.
+	if err := bot.ExtractMetadata(hit.Content, &meta); err != nil {
+		return bot.Metadata{}, false
+	}
+	log.Printf("   🔎 named in the text, not by a role: %s [%s] (matched: %s)",
+		strings.Join(idols, ", "), strings.Join(groups, ", "), strings.Join(matched, ", "))
+	return meta, true
 }
 
 // subjectKey is sameSubject's comparison for resolved ids: order-independent,

@@ -63,3 +63,42 @@ const (
 	ChainWindow       = chainWindow
 	ChainMaxFollowUps = chainMaxFollowUps
 )
+
+// DetectGroup and DetectIdol are the directory entries text detection scans,
+// for a caller that read the directory over the API instead of from the
+// database loadDirectory reads.
+type DetectGroup struct {
+	ID, Name string
+	Aliases  []string
+}
+
+type DetectIdol struct {
+	ID, Name, GroupID, GroupName string
+	Aliases                      []string
+}
+
+// Detector is detectSubjects over a directory the caller built, so a replay of
+// textDetection uses the bot's matching rules and not a copy of them.
+type Detector struct{ dir *directory }
+
+func NewDetector(groups []DetectGroup, idols []DetectIdol) *Detector {
+	dir := &directory{}
+	for _, g := range groups {
+		dir.groups = append(dir.groups, groupEntry{id: g.ID, name: g.Name, aliases: g.Aliases})
+	}
+	for _, i := range idols {
+		dir.idols = append(dir.idols, idolEntry{id: i.ID, name: i.Name, aliases: i.Aliases, groupID: i.GroupID, groupName: i.GroupName})
+	}
+	return &Detector{dir: dir}
+}
+
+// Detect returns the idol and group names the text names and the strings that
+// matched, ok=false unless detectSubjects is confident enough to attribute to.
+func (d *Detector) Detect(content string) (idols, groups, matched []string, ok bool) {
+	found, ok := detectSubjects(d.dir, content)
+	return found.idolNames, found.groupNames, found.matched, ok
+}
+
+// DetectStopwordCount is how many names GOYANGI_DETECT_STOPWORDS suppressed
+// when the process started, so a replay can say whether it has the list.
+func DetectStopwordCount() int { return len(detectStopwords) }

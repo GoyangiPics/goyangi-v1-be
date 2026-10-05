@@ -112,6 +112,7 @@ func main() {
 		ffmpegDir   = flag.String("ffmpeg", "", "directory holding the ffmpeg/ffprobe to use (default: PATH, then Homebrew's keg-only ffmpeg-full)")
 		origin      = flag.String("origin", hooks.OriginScript, "origin to stamp on the records: script (reversible marker) or discord")
 		relabel     = flag.String("relabel", "", "instead of backfilling, relabel every record's origin FROM:TO (e.g. script:discord) and exit")
+		scan        = flag.Bool("scan", false, "gap mode: instead of one role's pings, read the channel's history in the window and archive every role-pinged message (replaces -role; needs both -after and -before, each YYMMDD or an RFC3339 timestamp, and may reach past the bot's launch)")
 	)
 	flag.Parse()
 
@@ -119,15 +120,26 @@ func main() {
 		runRelabel(*baseURL, *email, *password, *relabel, *commit)
 		return
 	}
-	if *roleRaw == "" {
-		log.Fatal("-role is required")
+	if *scan {
+		if *roleRaw != "" {
+			log.Fatal("-scan reads every role ping in the window; drop -role")
+		}
+		if *after == "" || *before == "" {
+			log.Fatal("-scan needs both -after and -before: it is allowed past the bot's launch, so the window has to be stated")
+		}
+	} else if *roleRaw == "" {
+		log.Fatal("-role is required (or -scan for a gap fill)")
 	}
 	if *origin != hooks.OriginScript && *origin != hooks.OriginDiscord {
 		log.Fatal("-origin must be script or discord")
 	}
-	roleID, err := snowflake.Parse(*roleRaw)
-	if err != nil {
-		log.Fatalf("-role: %v", err)
+	var roleID snowflake.ID
+	if !*scan {
+		var err error
+		roleID, err = snowflake.Parse(*roleRaw)
+		if err != nil {
+			log.Fatalf("-role: %v", err)
+		}
 	}
 	if *previewFmt != "webp" && *previewFmt != "avif" {
 		log.Fatal("-preview must be webp or avif")
@@ -143,29 +155,44 @@ func main() {
 		log.Fatal("superuser credentials required: PB_ADMIN_EMAIL and PB_ADMIN_PASSWORD, or -email/-password")
 	}
 
-	// The live bot has ingested everything since it launched, so the search
-	// never reaches past that day: -before can narrow the window, not widen it.
+	// The live bot has ingested everything since it launched, so a per-role
+	// search never reaches past that day: -before can narrow the window, not
+	// widen it. -scan is the exception — it exists to fill a stretch the live bot
+	// was down for, so it takes the window it is given (both ends required above)
+	// and leans on the per-message dedupe for any overlap with what the bot did
+	// ingest.
 	var minID snowflake.ID
 	maxID := snowflake.New(botLaunch)
+	ceiling := botLaunch
 	if *after != "" {
-		t, err := time.Parse("060102", *after)
+		t, err := parseWindowTime(*after)
 		if err != nil {
-			log.Fatalf("-after: want YYMMDD: %v", err)
+			log.Fatalf("-after: %v", err)
 		}
 		minID = snowflake.New(t)
 	}
 	if *before != "" {
-		t, err := time.Parse("060102", *before)
+		t, err := parseWindowTime(*before)
 		if err != nil {
-			log.Fatalf("-before: want YYMMDD: %v", err)
+			log.Fatalf("-before: %v", err)
 		}
-		if t.After(botLaunch) {
+		if t.After(botLaunch) && !*scan {
 			log.Fatalf("-before %s is after the bot's launch (%s); everything from launch on is already the live bot's",
 				*before, botLaunch.Format("060102"))
 		}
 		maxID = snowflake.New(t)
+		if *scan {
+			ceiling = t
+		}
 	}
-	log.Printf("📅 window: %s → %s (exclusive)", orAny(*after), maxIDDay(maxID))
+	if *scan && minID.Time().After(maxID.Time()) {
+		log.Fatal("-after is later than -before")
+	}
+	if *scan {
+		log.Printf("📅 window: %s → %s (exclusive)", minID.Time().UTC().Format(time.RFC3339), maxID.Time().UTC().Format(time.RFC3339))
+	} else {
+		log.Printf("📅 window: %s → %s (exclusive)", orAny(*after), maxIDDay(maxID))
+	}
 
 	checkTools(*previewFmt, *ffmpegDir)
 
@@ -190,11 +217,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("Discord: %v", err)
 	}
-	roleName, ok := dc.roles[roleID]
-	if !ok {
-		log.Fatalf("role %s is not in guild %s", roleID, guildID)
+	dc.ceiling = ceiling
+	var roleName string
+	if *scan {
+		log.Printf("🎯 every role ping in channel %s", channelIDs[0])
+	} else {
+		var ok bool
+		roleName, ok = dc.roles[roleID]
+		if !ok {
+			log.Fatalf("role %s is not in guild %s", roleID, guildID)
+		}
+		log.Printf("🎯 role %q in channel %s", roleName, channelIDs[0])
 	}
-	log.Printf("🎯 role %q in channel %s", roleName, channelIDs[0])
 
 	// ── R2 (commit only) ──
 	var fs *filesystem.System
@@ -220,24 +254,58 @@ func main() {
 		origin:     *origin,
 		sem:        make(chan struct{}, *concurrency),
 		chains:     map[snowflake.ID]*chain{},
+		consumed:   map[snowflake.ID]bool{},
+		replies:    *replies,
 	}
 
 	// ── Search ──
 	log.Printf("🔎 searching…")
-	hits, err := dc.searchAll(ctx, searchQuery{
-		mentionsRoleIDs: []snowflake.ID{roleID},
-		channelIDs:      channelIDs,
-		minID:           minID,
-		maxID:           maxID,
-	})
-	if err != nil {
-		log.Fatalf("search: %v", err)
+	var hits []discord.Message
+	loose := map[snowflake.ID]bool{} // scan only: media with no ping, left to text detection
+	if *scan {
+		all, err := dc.scanChannel(ctx, channelIDs, minID, maxID)
+		if err != nil {
+			log.Fatalf("search: scan: %v", err)
+		}
+		for _, m := range all {
+			switch {
+			case m.Author.System || m.Author.ID == dc.appID:
+			case len(m.MentionRoles) > 0 || bot.BotMentionedIn(m.Content, dc.appID.String()):
+				hits = append(hits, m)
+			case len(bot.CollectMedia(m)) > 0:
+				hits = append(hits, m)
+				loose[m.ID] = true
+			}
+		}
+		log.Printf("📬 %d message(s) ping a role or the bot, and %d more carry media with no ping (text detection decides those)",
+			len(hits)-len(loose), len(loose))
+		log.Printf("🔤 text detection: %d name%s suppressed by GOYANGI_DETECT_STOPWORDS",
+			bot.DetectStopwordCount(), plural(bot.DetectStopwordCount(), "", "s"))
+	} else {
+		hits, err = dc.searchAll(ctx, searchQuery{
+			mentionsRoleIDs: []snowflake.ID{roleID},
+			channelIDs:      channelIDs,
+			minID:           minID,
+			maxID:           maxID,
+		})
+		if err != nil {
+			log.Fatalf("search: %v", err)
+		}
+		log.Printf("📬 %d message(s) ping %q", len(hits), roleName)
 	}
-	log.Printf("📬 %d message(s) ping %q", len(hits), roleName)
 
 	var replyMap map[snowflake.ID][]discord.Message
 	if *replies && len(hits) > 0 {
-		replyMap, err = dc.repliesTo(ctx, hits)
+		pinged := hits
+		if *scan {
+			pinged = nil
+			for _, h := range hits {
+				if !loose[h.ID] {
+					pinged = append(pinged, h)
+				}
+			}
+		}
+		replyMap, err = dc.repliesTo(ctx, pinged)
 		if err != nil {
 			log.Fatalf("replies: %v", err)
 		}
@@ -258,6 +326,9 @@ func main() {
 		if *limit > 0 && st.sets >= *limit {
 			log.Printf("⏹  -limit %d reached", *limit)
 			break
+		}
+		if loose[hit.ID] && r.consumed[hit.ID] {
+			continue // already part of an earlier set as a reply or follow-up
 		}
 		log.Printf("── [%d/%d] %s", i+1, len(hits), jumpLink(guildID, hit))
 		r.processHit(ctx, hit, replyMap[hit.ID], &st)
@@ -373,6 +444,10 @@ type discordREST struct {
 	rest   rest.Rest
 	appID  snowflake.ID
 	roles  map[snowflake.ID]string
+
+	// ceiling is where follow-up scans stop: messages at or after it belong to
+	// someone else (the live bot, or whatever lies past a -scan window).
+	ceiling time.Time
 }
 
 func newDiscord(token string) (*discordREST, error) {
@@ -386,7 +461,7 @@ func newDiscord(token string) (*discordREST, error) {
 	if err != nil {
 		return nil, fmt.Errorf("roles: %w", err)
 	}
-	d := &discordREST{client: client, rest: r, appID: app.ID, roles: map[snowflake.ID]string{}}
+	d := &discordREST{client: client, rest: r, appID: app.ID, roles: map[snowflake.ID]string{}, ceiling: botLaunch}
 	for _, role := range roles {
 		d.roles[role.ID] = role.Name
 	}
@@ -565,7 +640,7 @@ func (d *discordREST) followUps(ctx context.Context, hit discord.Message, inSet 
 		sort.Slice(msgs, func(i, j int) bool { return msgs[i].ID < msgs[j].ID })
 		for _, m := range msgs {
 			after = m.ID
-			if m.CreatedAt.Sub(lastAt) > bot.ChainWindow || !m.CreatedAt.Before(botLaunch) {
+			if m.CreatedAt.Sub(lastAt) > bot.ChainWindow || !m.CreatedAt.Before(d.ceiling) {
 				return out, nil
 			}
 			if m.Author.ID != hit.Author.ID || inSet[m.ID] {
@@ -590,6 +665,67 @@ func (d *discordREST) followUps(ctx context.Context, hit discord.Message, inSet 
 			return out, nil
 		}
 	}
+}
+
+// parseWindowTime reads a -after/-before value: a day (YYMMDD, midnight UTC) or
+// a full RFC3339 timestamp for a window that starts or ends mid-day.
+func parseWindowTime(s string) (time.Time, error) {
+	if t, err := time.Parse("060102", s); err == nil {
+		return t, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("want YYMMDD or an RFC3339 timestamp (2026-09-28T10:00:00Z), got %q", s)
+	}
+	return t.UTC(), nil
+}
+
+// scanChannel walks each channel's history oldest first across (minID, maxID)
+// and returns every message in it. Used to fill a stretch the live bot was down
+// for, where there is no single role to search on: the search endpoint has no
+// "mentions any role" filter, and the bot's other triggers (a bare follow-up,
+// an idol named in the text) cannot be searched for at all.
+func (d *discordREST) scanChannel(ctx context.Context, channels []snowflake.ID, minID, maxID snowflake.ID) ([]discord.Message, error) {
+	const page = 100
+	var out []discord.Message
+	for _, ch := range channels {
+		after, scanned := minID, 0
+		for {
+			var msgs []discord.Message
+			err := withRetry(ctx, func() error {
+				var err error
+				msgs, err = d.rest.GetMessages(ch, 0, 0, after, page, rest.WithCtx(ctx))
+				return err
+			})
+			if err != nil {
+				return nil, err
+			}
+			if len(msgs) == 0 {
+				break
+			}
+			// Discord hands `after` pages back newest first.
+			sort.Slice(msgs, func(i, j int) bool { return msgs[i].ID < msgs[j].ID })
+			past := false
+			for _, m := range msgs {
+				after = m.ID
+				if m.ID >= maxID {
+					past = true
+					break
+				}
+				scanned++
+				out = append(out, m)
+			}
+			if past || len(msgs) < page {
+				break
+			}
+			if ctx.Err() != nil {
+				return out, ctx.Err()
+			}
+		}
+		log.Printf("   read %d message(s) in channel %s", scanned, ch)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
 }
 
 // repliesTo finds the replies to each hit that the live bot's reply trigger
