@@ -1,8 +1,6 @@
 package hooks
 
 import (
-	"log"
-
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
@@ -22,7 +20,8 @@ import (
 // question is whether `date` falls on a different day from `created`: when it
 // doesn't, a filled-in date and an explicitly chosen one say the same thing.
 //
-// Model-level, so the bot and scripts are covered as well as the API.
+// Model-level, so the bot and scripts are covered as well as the API. Records
+// from before these hooks are dated by scripts/backfilldate, run by hand.
 func RegisterContentDateDefaults(app *pocketbase.PocketBase) {
 	// `created` is stamped at save time, after these hooks run, so a new record
 	// takes "now" — the same instant to within the save.
@@ -40,43 +39,5 @@ func RegisterContentDateDefaults(app *pocketbase.PocketBase) {
 			e.Record.Set("date", e.Record.GetDateTime("created"))
 		}
 		return e.Next()
-	})
-}
-
-// contentDateBackfillEnv opts a boot into backfillContentDate. Until it has
-// run, records from before RegisterContentDateDefaults stay undated and sort
-// first under "oldest by actual date".
-const contentDateBackfillEnv = "GOYANGI_BACKFILL_CONTENT_DATE"
-
-// backfillContentDate gives every record that predates
-// RegisterContentDateDefaults its upload time as its date.
-//
-// Same shape as backfillOrigin: raw SQL, no `updated` bump, count-guarded so it
-// is a no-op after the first boot.
-func backfillContentDate(app *pocketbase.PocketBase) error {
-	var pending int
-	err := app.DB().NewQuery(
-		"SELECT (SELECT COUNT(*) FROM {{contents}} WHERE COALESCE(date,'') = '')" +
-			" + (SELECT COUNT(*) FROM {{contents_sets}} WHERE COALESCE(date,'') = '')",
-	).Row(&pending)
-	if err != nil {
-		return err
-	}
-	if pending == 0 {
-		return nil
-	}
-
-	log.Printf("🔧 backfill: dating %d undated row(s) by upload time", pending)
-
-	return app.RunInTransaction(func(txApp core.App) error {
-		if _, err := txApp.DB().NewQuery(
-			"UPDATE `contents` SET date = created WHERE COALESCE(date,'') = ''",
-		).Execute(); err != nil {
-			return err
-		}
-		_, err := txApp.DB().NewQuery(
-			"UPDATE `contents_sets` SET date = created WHERE COALESCE(date,'') = ''",
-		).Execute()
-		return err
 	})
 }
