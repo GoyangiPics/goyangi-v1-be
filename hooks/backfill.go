@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"log"
+	"os"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -24,8 +25,12 @@ func RegisterBackfills(app *pocketbase.PocketBase) {
 		if err := backfillImgurOrigin(app); err != nil {
 			log.Printf("⚠️  backfill: imgur origin failed: %v", err)
 		}
-		if err := backfillContentDate(app); err != nil {
-			log.Printf("⚠️  backfill: content date failed: %v", err)
+		// Opt-in for now: run it by booting once with the variable set. Safe to
+		// leave set afterwards — it is count-guarded like the others.
+		if os.Getenv(contentDateBackfillEnv) == "1" {
+			if err := backfillContentDate(app); err != nil {
+				log.Printf("⚠️  backfill: content date failed: %v", err)
+			}
 		}
 		return nil
 	})

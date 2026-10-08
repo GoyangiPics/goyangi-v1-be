@@ -43,6 +43,11 @@ func RegisterContentDateDefaults(app *pocketbase.PocketBase) {
 	})
 }
 
+// contentDateBackfillEnv opts a boot into backfillContentDate. Until it has
+// run, records from before RegisterContentDateDefaults stay undated and sort
+// first under "oldest by actual date".
+const contentDateBackfillEnv = "GOYANGI_BACKFILL_CONTENT_DATE"
+
 // backfillContentDate gives every record that predates
 // RegisterContentDateDefaults its upload time as its date.
 //
