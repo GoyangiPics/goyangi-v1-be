@@ -68,6 +68,13 @@ func keepRequestedCreated(e *core.RecordRequestEvent) error {
 		return e.BadRequestError(CreatedHeader+" is not a datetime.", err)
 	}
 
+	// An undated record falls back to its upload time (content_date.go), and
+	// that hook runs inside the save, where `created` is still "now". The
+	// requested one is the upload time meant, so it stands in for the date here.
+	if e.Record.GetDateTime("date").IsZero() {
+		e.Record.Set("date", want)
+	}
+
 	if err := e.Next(); err != nil {
 		return err
 	}

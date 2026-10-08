@@ -49,6 +49,8 @@ func main() {
 	hooks.RegisterR2Hooks(app)
 	// Server-authoritative `origin` (direct vs discord) on contents/sets.
 	hooks.RegisterOriginHooks(app)
+	// contents/contents_sets.date falls back to the upload time when unset.
+	hooks.RegisterContentDateDefaults(app)
 	// A superuser may state `created` and origin "discord" over the API — the
 	// backfill of pre-bot posts needs both (hooks/provenance.go).
 	hooks.RegisterProvenanceOverrides(app)

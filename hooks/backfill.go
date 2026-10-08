@@ -24,6 +24,9 @@ func RegisterBackfills(app *pocketbase.PocketBase) {
 		if err := backfillImgurOrigin(app); err != nil {
 			log.Printf("⚠️  backfill: imgur origin failed: %v", err)
 		}
+		if err := backfillContentDate(app); err != nil {
+			log.Printf("⚠️  backfill: content date failed: %v", err)
+		}
 		return nil
 	})
 }
