@@ -47,6 +47,8 @@ func main() {
 	hooks.RegisterDrain(app)
 	// R2 storage hooks (upload → transcode + custom path, delete → cleanup).
 	hooks.RegisterR2Hooks(app)
+	// Failed or interrupted encodes: recorded on the post, retryable, re-queued at boot.
+	hooks.RegisterEncodeRecovery(app)
 	// Server-authoritative `origin` (direct vs discord) on contents/sets.
 	hooks.RegisterOriginHooks(app)
 	// contents/contents_sets.date falls back to the upload time when unset.

@@ -795,7 +795,7 @@
     "listRule": "",
     "viewRule": "",
     "createRule": "@request.auth.canUpload = true && (@request.auth.isAdmin = true || @request.body.uploader.user = @request.auth.id)",
-    "updateRule": "@request.auth.id != \"\" && (@request.auth.isAdmin = true || (uploader.user = @request.auth.id && @request.body.uploader:changed = false && (@request.body.set:changed = false || @request.body.set = \"\" || @request.body.set.uploader.user ?= @request.auth.id) && @request.body.file:isset = false && @request.body.original:isset = false && @request.body.preview:isset = false && @request.body.static:isset = false && @request.body.sd:isset = false && @request.body.width:isset = false && @request.body.height:isset = false && @request.body.preview_format:isset = false && @request.body.views:isset = false && @request.body.interpolate:isset = false && @request.body.interpolate_mode:isset = false && @request.body.discord:isset = false && @request.body.mirror:isset = false) || (@request.body.title:isset = false && @request.body.filename:isset = false && @request.body.file:isset = false && @request.body.original:isset = false && @request.body.preview:isset = false && @request.body.static:isset = false && @request.body.sd:isset = false && @request.body.preview_format:isset = false && @request.body.width:isset = false && @request.body.height:isset = false && @request.body.idol:isset = false && @request.body.group:isset = false && @request.body.tag:isset = false && @request.body.labels:isset = false && @request.body.origin:isset = false && @request.body.filetype:isset = false && @request.body.date:isset = false && @request.body.source:isset = false && @request.body.discord:isset = false && @request.body.mirror:isset = false && @request.body.uploader:isset = false && @request.body.set:isset = false && @request.body.views:isset = false && @request.body.interpolate:isset = false && @request.body.interpolate_mode:isset = false))",
+    "updateRule": "@request.auth.id != \"\" && (@request.auth.isAdmin = true || (uploader.user = @request.auth.id && @request.body.uploader:changed = false && (@request.body.set:changed = false || @request.body.set = \"\" || @request.body.set.uploader.user ?= @request.auth.id) && @request.body.file:isset = false && @request.body.original:isset = false && @request.body.preview:isset = false && @request.body.static:isset = false && @request.body.sd:isset = false && @request.body.width:isset = false && @request.body.height:isset = false && @request.body.preview_format:isset = false && @request.body.views:isset = false && @request.body.interpolate:isset = false && @request.body.interpolate_mode:isset = false && @request.body.discord:isset = false && @request.body.mirror:isset = false && @request.body.encodeError:isset = false && @request.body.encodeAttempts:isset = false) || (@request.body.title:isset = false && @request.body.filename:isset = false && @request.body.file:isset = false && @request.body.original:isset = false && @request.body.preview:isset = false && @request.body.static:isset = false && @request.body.sd:isset = false && @request.body.preview_format:isset = false && @request.body.width:isset = false && @request.body.height:isset = false && @request.body.idol:isset = false && @request.body.group:isset = false && @request.body.tag:isset = false && @request.body.labels:isset = false && @request.body.origin:isset = false && @request.body.filetype:isset = false && @request.body.date:isset = false && @request.body.source:isset = false && @request.body.discord:isset = false && @request.body.mirror:isset = false && @request.body.uploader:isset = false && @request.body.set:isset = false && @request.body.views:isset = false && @request.body.interpolate:isset = false && @request.body.interpolate_mode:isset = false && @request.body.encodeError:isset = false && @request.body.encodeAttempts:isset = false))",
     "deleteRule": "@request.auth.isAdmin = true || uploader.user = @request.auth.id",
     "name": "contents",
     "type": "base",
@@ -1165,6 +1165,32 @@
         "required": false,
         "system": false,
         "type": "relation"
+      },
+      {
+        "autogeneratePattern": "",
+        "hidden": false,
+        "id": "text_encodeerror_contents",
+        "max": 0,
+        "min": 0,
+        "name": "encodeError",
+        "pattern": "",
+        "presentable": false,
+        "primaryKey": false,
+        "required": false,
+        "system": false,
+        "type": "text"
+      },
+      {
+        "hidden": false,
+        "id": "number_encodeattempts_contents",
+        "max": null,
+        "min": null,
+        "name": "encodeAttempts",
+        "onlyInt": true,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
       },
       {
         "hidden": false,

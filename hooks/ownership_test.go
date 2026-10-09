@@ -35,6 +35,10 @@ func newFixture(t *testing.T) *fixture {
 	bindOwnershipHooks(app)
 	RegisterUploaderGuards(app)
 	RegisterSetRoutes(app)
+	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
+		registerReprocessRoute(e)
+		return e.Next()
+	})
 
 	f := &fixture{
 		app:   app,

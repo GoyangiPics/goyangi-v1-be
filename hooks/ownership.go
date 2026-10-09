@@ -68,7 +68,8 @@ const (
 		`@request.body.width:isset = false && @request.body.height:isset = false && ` +
 		`@request.body.preview_format:isset = false && @request.body.views:isset = false && ` +
 		`@request.body.interpolate:isset = false && @request.body.interpolate_mode:isset = false && ` +
-		`@request.body.discord:isset = false && @request.body.mirror:isset = false`
+		`@request.body.discord:isset = false && @request.body.mirror:isset = false && ` +
+		`@request.body.encodeError:isset = false && @request.body.encodeAttempts:isset = false`
 
 	// Non-owners may only touch what isn't on this list — in practice their own
 	// likes and collections (each further checked by a hook).
@@ -84,7 +85,8 @@ const (
 		`@request.body.discord:isset = false && @request.body.mirror:isset = false && ` +
 		`@request.body.uploader:isset = false && @request.body.set:isset = false && ` +
 		`@request.body.views:isset = false && @request.body.interpolate:isset = false && ` +
-		`@request.body.interpolate_mode:isset = false`
+		`@request.body.interpolate_mode:isset = false && @request.body.encodeError:isset = false && ` +
+		`@request.body.encodeAttempts:isset = false`
 )
 
 // accessRules is the source of truth for the rules this file is about. Applied

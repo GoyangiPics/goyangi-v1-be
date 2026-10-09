@@ -170,19 +170,15 @@ func RegisterR2Hooks(app *pocketbase.PocketBase) {
 		return e.Next()
 	})
 
+	// Every run goes through startEncode, which counts attempts and records
+	// failures — see encode_status.go.
+	postEncoder = &encoder{app: app, run: func(id string) { moveFileToCustomR2Path(app, id) }}
+
 	app.OnRecordAfterCreateSuccess("contents").BindFunc(func(e *core.RecordEvent) error {
 		if e.Record.GetString("file") == "" {
 			return e.Next()
 		}
-		// Counted here, synchronously, rather than inside the goroutine: the
-		// record exists the moment this hook returns, so GET /api/queue has to
-		// include the job from that moment too. See enqueueJob.
-		release := enqueueJob(e.Record.GetString("filetype"))
-		recordId := e.Record.Id
-		go func() {
-			defer release()
-			moveFileToCustomR2Path(app, recordId)
-		}()
+		startEncode(e.Record.Id, e.Record.GetString("filetype"))
 		return e.Next()
 	})
 
