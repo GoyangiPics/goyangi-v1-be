@@ -92,8 +92,8 @@ func ensureUploaderFields(app *pocketbase.PocketBase) error {
 	}
 	if collection.Fields.GetByName("blockIngest") == nil {
 		// Flip this in the admin UI to stop the bot ingesting anything credited
-		// to this uploader. A bool with no API rule permitting it means only a
-		// superuser can set it — see the note on the check in bot/ingest.go.
+		// to this uploader. Superuser-only: RegisterUploaderGuards restores it on
+		// any other write — see the note on the check in bot/ingest.go.
 		collection.Fields.Add(&core.BoolField{Name: "blockIngest"})
 		added = true
 	}
@@ -102,6 +102,39 @@ func ensureUploaderFields(app *pocketbase.PocketBase) error {
 	}
 
 	return app.Save(collection)
+}
+
+// RegisterUploaderGuards keeps the moderation fields of an uploader out of its
+// owner's hands.
+//
+// uploaders.updateRule is `user = @request.auth.id`, which lets the owner write
+// any field — including `blockIngest`, which is how an admin stops the bot
+// ingesting for someone, and `aliases`, which decide whose Discord username is
+// credited to whom: an owner adding someone else's name would be credited with
+// that person's Discord posts. Rules can't scope a write to some fields, so the
+// request hooks put those fields back. `user` too, so a profile can't be handed
+// to another account. Superusers (the admin UI, the merge endpoint's own writes
+// don't come through here at all) are unaffected.
+//
+// The owner keeps the name, which is all the site edits.
+func RegisterUploaderGuards(app *pocketbase.PocketBase) {
+	app.OnRecordCreateRequest("uploaders").BindFunc(func(e *core.RecordRequestEvent) error {
+		if !e.HasSuperuserAuth() {
+			e.Record.Set("aliases", "")
+			e.Record.Set("blockIngest", false)
+		}
+		return e.Next()
+	})
+
+	app.OnRecordUpdateRequest("uploaders").BindFunc(func(e *core.RecordRequestEvent) error {
+		if !e.HasSuperuserAuth() {
+			original := e.Record.Original()
+			for _, field := range []string{"aliases", "blockIngest", "user"} {
+				e.Record.Set(field, original.Get(field))
+			}
+		}
+		return e.Next()
+	})
 }
 
 // ─── Merge ──────────────────────────────────────────────────────────────────

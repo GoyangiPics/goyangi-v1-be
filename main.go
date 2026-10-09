@@ -62,6 +62,8 @@ func main() {
 	// uploaders.aliases, same reason: without it the bot keeps minting a second
 	// uploader for anyone whose Discord name differs from their site name.
 	hooks.RegisterUploaderFields(app)
+	// Owners may rename their uploader, not unblock it or claim aliases.
+	hooks.RegisterUploaderGuards(app)
 	// `uploaders_stats` view + contents(uploader, filetype) index: the
 	// /uploaders directory in one request instead of one count per uploader.
 	hooks.RegisterUploaderStats(app)
