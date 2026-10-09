@@ -39,7 +39,7 @@ type uploadDenial string
 // uploader on the first run — and be locked out on the second, when the gate
 // finds the stray (display name checks first) and sees no account behind it.
 //
-// Fails CLOSED, unlike uploaderBlocksIngest, which deliberately fails open. The
+// Fails CLOSED, unlike uploaderIngestFlags, which deliberately fails open. The
 // two guard opposite things: that one is a quality filter where losing content
 // to a transient error is the worse outcome, this one is a permission check
 // where letting an unknown account publish is.

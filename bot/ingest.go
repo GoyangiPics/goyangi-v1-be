@@ -82,7 +82,7 @@ func onMessageCreate(e *events.MessageCreate) {
 
 	fillMessageDefaults(&plan.metadata, e.Message, *e.GuildID)
 
-	outcome := runIngestion(plan.metadata, plan.items, plan.joinsSet)
+	outcome := runIngestion(plan.metadata, plan.items, plan.joinsSet, true)
 	renderOutcomeToMessage(e, outcome)
 
 	// A fresh set opens a chain for its author, so the bare messages that follow
@@ -771,7 +771,10 @@ func (o ingestOutcome) text() string {
 // runIngestion resolves relations, creates the set (for multi-item messages)
 // and one content record per media item. Pure pipeline — no Discord I/O —
 // so every entry point shares it.
-func runIngestion(metadata Metadata, items []MediaItem, isReply bool) ingestOutcome {
+// automatic is true for the passive path — a role ping, a reply, a chain or text
+// detection in an allowlisted channel — and false for the explicit "Ingest this
+// message" and /reupload, which somebody asked for on purpose.
+func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool) ingestOutcome {
 	outcome := ingestOutcome{total: len(items)}
 
 	rel, err := resolveRelations(metadata)
@@ -798,6 +801,18 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply bool) ingestOutc
 	if len(rel.blockedUploaders) > 0 {
 		outcome.skipped = fmt.Sprintf("Not ingested — %s is blocked from ingestion.",
 			strings.Join(rel.blockedUploaders, ", "))
+		return outcome
+	}
+
+	// The uploader's own opt-out, for people who upload on the site and also
+	// post the same thing to Discord. Automatic runs only: a deliberate
+	// "Ingest this message" or /reupload is someone asking for exactly this.
+	// Any credited uploader opting out skips the message — it is their post
+	// either way, and a message credits one uploader in practice. The ⏭️ this
+	// earns is the feedback that it was a choice, not a failure.
+	if automatic && len(rel.optedOutUploaders) > 0 {
+		outcome.skipped = fmt.Sprintf("Not imported — %s turned off automatic import from Discord.",
+			strings.Join(rel.optedOutUploaders, ", "))
 		return outcome
 	}
 

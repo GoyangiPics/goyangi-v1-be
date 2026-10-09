@@ -330,6 +330,7 @@ type dirEntry struct {
 	id, name string
 	aliases  []string
 	blocked  bool // uploaders: blockIngest
+	optedOut bool // uploaders: skipDiscordImport
 }
 
 type dirIdol struct {
@@ -358,13 +359,14 @@ func loadDirectory(pb *pbClient) (*directory, error) {
 		d.idolName[r.str("id")] = strings.TrimSpace(r.str("name"))
 	}
 
-	uploaders, err := pb.listAll("uploaders", "", "id,name,aliases,blockIngest")
+	uploaders, err := pb.listAll("uploaders", "", "id,name,aliases,blockIngest,skipDiscordImport")
 	if err != nil {
 		return nil, fmt.Errorf("uploaders: %w", err)
 	}
 	for _, r := range uploaders {
 		e := toEntry(r)
 		e.blocked = r.boolean("blockIngest")
+		e.optedOut = r.boolean("skipDiscordImport")
 		d.uploaders = append(d.uploaders, e)
 	}
 
@@ -456,26 +458,34 @@ func (d *directory) names(byID map[string]string, ids []string) []string {
 }
 
 // lookupOrCreateUploader is bot.lookupOrCreateByName for uploaders: name or
-// alias, case-insensitive, created when unknown. Reports blockIngest so the
-// caller can abandon the message the way runIngestion does.
-func (d *directory) lookupOrCreateUploader(pb *pbClient, name string, commit bool) (id string, blocked bool, err error) {
+// alias, case-insensitive, created when unknown. skipReason is non-empty when
+// the uploader is blocked or has turned off automatic import, so the caller can
+// abandon the message the way the live bot's automatic path does — everything
+// this script fills in is what that path would have ingested.
+func (d *directory) lookupOrCreateUploader(pb *pbClient, name string, commit bool) (id, skipReason string, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	needle := strings.ToLower(strings.TrimSpace(name))
 	for _, u := range d.uploaders {
 		if bot.MatchesAnyName(needle, u.name, u.aliases) {
-			return u.id, u.blocked, nil
+			switch {
+			case u.blocked:
+				return u.id, "is blocked from ingestion", nil
+			case u.optedOut:
+				return u.id, "turned off automatic import from Discord", nil
+			}
+			return u.id, "", nil
 		}
 	}
 	if !commit {
-		return "(new uploader)", false, nil
+		return "(new uploader)", "", nil
 	}
 	rec, err := pb.createPlain("uploaders", map[string]any{"name": strings.TrimSpace(name)})
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
 	d.uploaders = append(d.uploaders, dirEntry{id: rec.str("id"), name: strings.TrimSpace(name)})
-	return rec.str("id"), false, nil
+	return rec.str("id"), "", nil
 }
 
 // lookupOrCreateTag mirrors the tag half of bot.lookupOrCreateByName, including

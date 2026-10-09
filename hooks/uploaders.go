@@ -97,6 +97,15 @@ func ensureUploaderFields(app *pocketbase.PocketBase) error {
 		collection.Fields.Add(&core.BoolField{Name: "blockIngest"})
 		added = true
 	}
+	if collection.Fields.GetByName("skipDiscordImport") == nil {
+		// The uploader's own choice, unlike blockIngest: "don't turn my Discord
+		// posts into posts automatically". For people who upload everything on
+		// the site and post the same thing to Discord, which otherwise lands
+		// twice. Only the passive path honours it; an explicit "Ingest this
+		// message" or /reupload still goes through. False = import, as before.
+		collection.Fields.Add(&core.BoolField{Name: "skipDiscordImport"})
+		added = true
+	}
 	if !added {
 		return nil
 	}
@@ -116,7 +125,7 @@ func ensureUploaderFields(app *pocketbase.PocketBase) error {
 // to another account. Superusers (the admin UI, the merge endpoint's own writes
 // don't come through here at all) are unaffected.
 //
-// The owner keeps the name, which is all the site edits.
+// The owner keeps name and skipDiscordImport, which is all the site edits.
 func RegisterUploaderGuards(app *pocketbase.PocketBase) {
 	app.OnRecordCreateRequest("uploaders").BindFunc(func(e *core.RecordRequestEvent) error {
 		if !e.HasSuperuserAuth() {

@@ -175,14 +175,14 @@ func (r *runner) processHit(ctx context.Context, hit discord.Message, replies []
 	if uploader == "" {
 		uploader = bot.UploaderFromMessage(hit)
 	}
-	upID, blocked, err := r.dir.lookupOrCreateUploader(r.pb, uploader, r.commit)
+	upID, skipReason, err := r.dir.lookupOrCreateUploader(r.pb, uploader, r.commit)
 	if err != nil {
 		st.failed++
 		log.Printf("   ❌ uploader %q: %v", uploader, err)
 		return
 	}
-	if blocked {
-		skip(fmt.Sprintf("uploader %s is blocked from ingestion", uploader))
+	if skipReason != "" {
+		skip(fmt.Sprintf("uploader %s %s", uploader, skipReason))
 		return
 	}
 	var tagIDs []string

@@ -479,7 +479,7 @@ func runManualIngest(r *reply, req manualIngest) {
 		metadata.SetId = joinSetID
 	}
 
-	outcome := runIngestion(metadata, items, joinSetID != "")
+	outcome := runIngestion(metadata, items, joinSetID != "", false)
 
 	// React on the source message so the channel it came from shows it was
 	// processed, the same signal the context menu leaves.

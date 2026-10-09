@@ -29,6 +29,9 @@ type resolvedRelations struct {
 	// Names of resolved uploaders carrying `blockIngest`. Non-empty means the
 	// run must be abandoned — see runIngestion.
 	blockedUploaders []string
+	// Names of resolved uploaders who turned off automatic import
+	// (`skipDiscordImport`). Only automatic runs honour it — see runIngestion.
+	optedOutUploaders []string
 }
 
 // resolveRelations maps every name in the metadata to PocketBase record ids.
@@ -95,8 +98,12 @@ func resolveRelations(m Metadata) (resolvedRelations, error) {
 		// Checked here rather than at the call site so every entry point gets it
 		// for free — passive ingestion, the context command and /reupload all
 		// funnel through resolveRelations.
-		if blocked, bname := uploaderBlocksIngest(id); blocked {
-			rel.blockedUploaders = append(rel.blockedUploaders, bname)
+		flags := uploaderIngestFlags(id)
+		if flags.blocked {
+			rel.blockedUploaders = append(rel.blockedUploaders, flags.name)
+		}
+		if flags.optedOut {
+			rel.optedOutUploaders = append(rel.optedOutUploaders, flags.name)
 		}
 	}
 
@@ -111,25 +118,33 @@ func resolveRelations(m Metadata) (resolvedRelations, error) {
 	return rel, nil
 }
 
-// uploaderBlocksIngest reports whether this uploader is flagged to have its
-// ingestion dropped, and its name for the log.
+// uploaderFlags is what an uploader record says about ingesting for it.
+type uploaderFlags struct {
+	blocked  bool // blockIngest: an admin stopped ingestion for this uploader
+	optedOut bool // skipDiscordImport: the uploader turned off automatic import
+	name     string
+}
+
+// uploaderIngestFlags reads both ingest flags for an uploader, and its name for
+// the outcome text.
 //
-// Read live rather than through the directory cache: flipping the flag in the
-// admin UI has to take effect on the next message, not up to a minute later.
-// It is one lookup per uploader named on a message, which is almost always one.
-func uploaderBlocksIngest(id string) (blocked bool, name string) {
+// Read live rather than through the directory cache: flipping either flag has
+// to take effect on the next message, not up to a minute later. It is one
+// lookup per uploader named on a message, which is almost always one.
+func uploaderIngestFlags(id string) uploaderFlags {
 	record, err := App.FindRecordById("uploaders", id)
 	if err != nil {
 		// Fail OPEN: a lookup failure must not silently start dropping
-		// everybody's uploads. The flag is a quality filter, and losing content
-		// to a transient database error is the worse outcome.
-		slog.Warn("could not read uploader for the ingest block check", "uploader", id, "err", err)
-		return false, ""
+		// everybody's uploads. Both flags are filters, and losing content to a
+		// transient database error is the worse outcome.
+		slog.Warn("could not read uploader for the ingest flag check", "uploader", id, "err", err)
+		return uploaderFlags{}
 	}
-	if !record.GetBool("blockIngest") {
-		return false, ""
+	return uploaderFlags{
+		blocked:  record.GetBool("blockIngest"),
+		optedOut: record.GetBool("skipDiscordImport"),
+		name:     record.GetString("name"),
 	}
-	return true, record.GetString("name")
 }
 
 // findGroupIDsByNames resolves group names against the directory
