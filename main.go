@@ -64,6 +64,9 @@ func main() {
 	hooks.RegisterUploaderFields(app)
 	// Owners may rename their uploader, not unblock it or claim aliases.
 	hooks.RegisterUploaderGuards(app)
+	// Who may change which posts and sets: access rules, derived set uploaders,
+	// empty-set cleanup, likes guard, admin audit.
+	hooks.RegisterOwnership(app)
 	// `uploaders_stats` view + contents(uploader, filetype) index: the
 	// /uploaders directory in one request instead of one count per uploader.
 	hooks.RegisterUploaderStats(app)

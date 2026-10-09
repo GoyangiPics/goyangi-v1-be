@@ -125,8 +125,10 @@ func ensureUploaderFields(app *pocketbase.PocketBase) error {
 // to another account. Superusers (the admin UI, the merge endpoint's own writes
 // don't come through here at all) are unaffected.
 //
-// The owner keeps name and skipDiscordImport, which is all the site edits.
-func RegisterUploaderGuards(app *pocketbase.PocketBase) {
+// The owner keeps name and skipDiscordImport, which is all the site edits. An
+// admin (updateRule lets them reach any uploader) may set blockIngest — the
+// moderation switch — and nothing else of someone else's.
+func RegisterUploaderGuards(app core.App) {
 	app.OnRecordCreateRequest("uploaders").BindFunc(func(e *core.RecordRequestEvent) error {
 		if !e.HasSuperuserAuth() {
 			e.Record.Set("aliases", "")
@@ -136,11 +138,26 @@ func RegisterUploaderGuards(app *pocketbase.PocketBase) {
 	})
 
 	app.OnRecordUpdateRequest("uploaders").BindFunc(func(e *core.RecordRequestEvent) error {
-		if !e.HasSuperuserAuth() {
-			original := e.Record.Original()
-			for _, field := range []string{"aliases", "blockIngest", "user"} {
-				e.Record.Set(field, original.Get(field))
-			}
+		if e.HasSuperuserAuth() {
+			return e.Next()
+		}
+		original := e.Record.Original()
+		isAdmin := e.Auth != nil && e.Auth.GetBool("isAdmin")
+		isOwner := e.Auth != nil && original.GetString("user") == e.Auth.Id
+
+		// aliases and user are never theirs to set. blockIngest is the admins'
+		// moderation switch — an admin's, not the blocked person's. And an admin
+		// reaching someone else's uploader (updateRule lets them) gets only that
+		// switch, not the person's name or settings.
+		locked := []string{"aliases", "user"}
+		if !isAdmin {
+			locked = append(locked, "blockIngest")
+		}
+		if !isOwner {
+			locked = append(locked, "name", "skipDiscordImport")
+		}
+		for _, field := range locked {
+			e.Record.Set(field, original.Get(field))
 		}
 		return e.Next()
 	})

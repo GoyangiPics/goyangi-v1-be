@@ -22,24 +22,10 @@ import (
 //
 // # Why this is a hook and not an API rule
 //
-// The obvious fix is a rule clause like
-//
-//	@request.body.collections.user.id = @request.auth.id
-//
-// and it does not work. The app adds and removes membership with PocketBase's
-// relation modifiers (`collections+` / `collections-`, see QuickCollectionModal),
-// and rules cannot see those keys:
-//
-//   - RequestEvent.initRequestInfo binds the RAW body, with no modifier
-//     normalisation — so the body key is literally "collections+" and
-//     `@request.body.collections:isset` is FALSE.
-//   - The resolver's allowed-identifier pattern is `\@request\.body\.[\w\.\:]*\w+`,
-//     and `+` is not a word character, so `@request.body.collections+` cannot even
-//     be expressed.
-//
-// A rule would therefore pass every request the app actually sends, while
-// looking like it guarded them. A hook runs after modifiers are resolved and
-// sees the record's real final state, whichever way it was written.
+// PocketBase now resolves relation modifiers (`collections+` / `collections-`)
+// into the full value before checking rules, so a rule can see the final list —
+// but not which entries are NEW. "Every added collection is yours, removals are
+// free" needs the before/after diff, which only a hook has.
 //
 // Only ADDITIONS are checked. Removing content from a collection stays open,
 // including someone else's: the legitimate case — "get my content out of your

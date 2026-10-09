@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -35,12 +35,18 @@ var (
 
 // RegisterSetRoutes adds the set-management endpoints.
 //
-//	POST /api/admin/sets/merge      {target, sources[], mergeRelations} (admin)
+//	POST /api/sets/merge            {target, sources[], mergeRelations} (admin, or owner of every post involved)
+//	POST /api/admin/sets/merge      same, admin only (kept for existing callers)
 //	POST /api/sets/{id}/propagate   {fields[]}                         (set uploader or admin)
-func RegisterSetRoutes(app *pocketbase.PocketBase) {
+func RegisterSetRoutes(app core.App) {
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
 		e.Router.POST("/api/admin/sets/merge", mergeSets(app)).
 			Bind(apis.RequireAuth("users"), requireAdmin())
+
+		// Owners merge their own sets; the permission check is inside, against
+		// every post involved.
+		e.Router.POST("/api/sets/merge", mergeSets(app)).
+			Bind(apis.RequireAuth("users"))
 
 		// NOT admin-gated: the normal case is an uploader fixing their own set.
 		// Authorisation is checked inside, against the set's uploader list.
@@ -82,7 +88,13 @@ type mergeSetsBody struct {
 // Rollback is genuinely safe: inside a transaction PocketBase defers
 // OnRecord*AfterSuccess hooks to commit and skips them when the transaction
 // errored, so a failed merge deletes zero R2 objects.
-func mergeSets(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
+//
+// # Who may merge
+//
+// Admins, any sets. Anyone else only when the merge can't touch somebody else's
+// work: they co-own the target, and every post in every source is theirs. A
+// source with another person's post in it is not theirs to dissolve.
+func mergeSets(app core.App) func(*core.RequestEvent) error {
 	return func(e *core.RequestEvent) error {
 		var body mergeSetsBody
 		if err := e.BindBody(&body); err != nil {
@@ -136,6 +148,22 @@ func mergeSets(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 					return err
 				}
 				sources = append(sources, src)
+			}
+
+			if !e.Auth.GetBool("isAdmin") {
+				mine := callerUploaderIDs(txApp, e.Auth.Id)
+				if !sharesAny(target.GetStringSlice("uploader"), mine) {
+					return errSetForbidden
+				}
+				for _, src := range sources {
+					foreign, err := countForeignPosts(txApp, src.Id, mine)
+					if err != nil {
+						return err
+					}
+					if foreign > 0 {
+						return errSetForbidden
+					}
+				}
 			}
 
 			// 1. Children first. Always.
@@ -211,6 +239,8 @@ func mergeSets(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 				fmt.Sprintf("A source set has more than %d items — merge it manually.", maxMergeChildren), nil)
 		case errors.Is(txErr, errSetRelOverflow):
 			return e.BadRequestError("The merged set would exceed the idol/group/uploader limit.", nil)
+		case errors.Is(txErr, errSetForbidden):
+			return e.ForbiddenError("You can only merge sets where every post is yours.", nil)
 		case errors.Is(txErr, errSetStillHasKids):
 			// 409, not 500: nothing was lost, the guard did its job.
 			return apis.NewApiError(409, "A source set gained items during the merge. Nothing was changed — try again.", nil)
@@ -280,7 +310,11 @@ var propagatableSetFields = map[string]bool{
 // So a browser batch 403s on every clip the editor didn't upload — and
 // PocketBase batches are atomic, meaning one rejection fails all of them and the
 // user gets nothing.
-func propagateSet(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
+//
+// Non-admins only ever change their own posts: a co-uploader fixing the set's
+// title must not rewrite the clips somebody else contributed. Those are counted
+// as `skipped` instead.
+func propagateSet(app core.App) func(*core.RequestEvent) error {
 	return func(e *core.RequestEvent) error {
 		setID := e.Request.PathValue("id")
 		if setID == "" {
@@ -303,7 +337,7 @@ func propagateSet(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 			return e.BadRequestError("At least one field to propagate is required.", nil)
 		}
 
-		var updated int
+		var updated, skipped int
 
 		txErr := app.RunInTransaction(func(txApp core.App) error {
 			set, err := txApp.FindRecordById("contents_sets", setID)
@@ -314,12 +348,11 @@ func propagateSet(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 				return err
 			}
 
-			if !e.Auth.GetBool("isAdmin") {
-				allowed, err := callerOwnsSet(txApp, set, e.Auth.Id)
-				if err != nil {
-					return err
-				}
-				if !allowed {
+			isAdmin := e.Auth.GetBool("isAdmin")
+			var mine []string
+			if !isAdmin {
+				mine = callerUploaderIDs(txApp, e.Auth.Id)
+				if !sharesAny(set.GetStringSlice("uploader"), mine) {
 					return errSetForbidden
 				}
 			}
@@ -336,6 +369,10 @@ func propagateSet(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 			}
 
 			for _, child := range children {
+				if !isAdmin && !slices.Contains(mine, child.GetString("uploader")) {
+					skipped++
+					continue
+				}
 				for _, field := range fields {
 					switch field {
 					case "title":
@@ -379,28 +416,36 @@ func propagateSet(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 
 		return e.JSON(200, map[string]any{
 			"updated": updated,
+			"skipped": skipped,
 			"fields":  fields,
 		})
 	}
 }
 
-// callerOwnsSet reports whether the user's uploader record is on the set.
-//
-// Mirrors contents_sets.deleteRule (uploader.user ?= @request.auth.id).
-func callerOwnsSet(app core.App, set *core.Record, userID string) (bool, error) {
-	uploaderIDs := set.GetStringSlice("uploader")
-	if len(uploaderIDs) == 0 {
-		return false, nil
+// sharesAny reports whether any id is in both lists — "is one of my uploaders on
+// this set". Replaces callerOwnsSet, which bound a []string to `IN {:ids}`;
+// dbx passes a single placeholder through as one value, so that never matched.
+func sharesAny(a, b []string) bool {
+	for _, id := range a {
+		if slices.Contains(b, id) {
+			return true
+		}
 	}
-	var n int
-	err := app.DB().
-		NewQuery("SELECT COUNT(*) FROM {{uploaders}} WHERE [[id]] IN {:ids} AND [[user]] = {:user}").
-		Bind(dbx.Params{"ids": uploaderIDs, "user": userID}).
-		Row(&n)
-	if err != nil {
-		return false, err
+	return false
+}
+
+// countForeignPosts counts the posts in a set whose uploader isn't one of mine,
+// including posts with no uploader at all (those are admin-only).
+func countForeignPosts(app core.App, setID string, mine []string) (int64, error) {
+	exprs := []dbx.Expression{dbx.HashExp{"set": setID}}
+	if len(mine) > 0 {
+		ids := make([]any, len(mine))
+		for i, id := range mine {
+			ids[i] = id
+		}
+		exprs = append(exprs, dbx.NotIn("uploader", ids...))
 	}
-	return n > 0, nil
+	return app.CountRecords("contents", exprs...)
 }
 
 // stripDatePrefix removes the leading "YYMMDD " that set titles carry.
