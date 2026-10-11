@@ -21,6 +21,10 @@ func TestBlockNonPublic(t *testing.T) {
 		"[fe80::1]:80",       // v6 link-local
 		"[fc00::1]:80",       // v6 ULA
 		"[::]:80",            // v6 unspecified
+		"100.100.100.100:80", // carrier-grade NAT, where VPNs like Tailscale live
+		"198.18.0.1:80",      // benchmarking
+		"240.0.0.1:80",       // reserved
+		"[::ffff:100.64.0.1]:80",
 	}
 	for _, addr := range blocked {
 		if err := blockNonPublic("tcp", addr, nil); err == nil {

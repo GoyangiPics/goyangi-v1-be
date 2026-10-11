@@ -21,6 +21,21 @@ import (
 
 var errPrivateAddress = fmt.Errorf("destination resolves to a private or local address")
 
+// nonPublicRanges are reserved ranges the net.IP predicates below don't cover:
+// carrier-grade NAT (also where Tailscale and similar VPNs hand out addresses),
+// benchmarking, and the old class E block. None is reachable public internet.
+var nonPublicRanges = func() []*net.IPNet {
+	var out []*net.IPNet
+	for _, cidr := range []string{"100.64.0.0/10", "198.18.0.0/15", "240.0.0.0/4"} {
+		_, n, err := net.ParseCIDR(cidr)
+		if err != nil {
+			panic(err)
+		}
+		out = append(out, n)
+	}
+	return out
+}()
+
 // blockNonPublic rejects dials to anything that isn't a public unicast address.
 func blockNonPublic(_, address string, _ syscall.RawConn) error {
 	host, _, err := net.SplitHostPort(address)
@@ -34,6 +49,11 @@ func blockNonPublic(_, address string, _ syscall.RawConn) error {
 	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
 		return fmt.Errorf("%w: %s", errPrivateAddress, ip)
+	}
+	for _, n := range nonPublicRanges {
+		if n.Contains(ip) {
+			return fmt.Errorf("%w: %s", errPrivateAddress, ip)
+		}
 	}
 	return nil
 }
