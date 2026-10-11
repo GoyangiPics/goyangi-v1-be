@@ -148,6 +148,14 @@ func TestExtractMediaLinks(t *testing.T) {
 			}},
 		},
 		{
+			name:    "upper-case extensions, as cameras and phones write them",
+			content: "https://example.com/IMG_0001.JPG https://example.com/clip.MP4",
+			want: []MediaItem{
+				{URL: "https://example.com/IMG_0001.JPG", Filename: "IMG_0001.JPG", Filetype: "image"},
+				{URL: "https://example.com/clip.MP4", Filename: "clip.MP4", Filetype: "gif"},
+			},
+		},
+		{
 			name:    "direct webp and avif links",
 			content: "https://example.com/pic.webp https://example.com/pic.avif",
 			want: []MediaItem{

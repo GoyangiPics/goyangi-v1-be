@@ -52,8 +52,10 @@ var (
 	catboxRegexp     = regexp.MustCompile(`https?://files\.catbox\.moe/[a-zA-Z0-9]+\.[a-zA-Z0-9]+`)
 	pixeldrainRegexp = regexp.MustCompile(`https?://pixeldrain\.com/(?:u|api/file)/([a-zA-Z0-9]+)`)
 	// directRegexp matches any other direct media URL (query string allowed —
-	// Discord CDN links are signed and need theirs kept).
-	directRegexp = regexp.MustCompile(`https?://[^\s<>|"']+\.(?:mp4|webm|mov|webp|avif|jpe?g|png|gif)(?:\?[^\s<>|"']*)?`)
+	// Discord CDN links are signed and need theirs kept). The extension in any
+	// case: cameras and phones name files IMG_0001.JPG, and filetypeByExt
+	// already lowercases.
+	directRegexp = regexp.MustCompile(`https?://[^\s<>|"']+\.(?i:mp4|webm|mov|webp|avif|jpe?g|png|gif)(?:\?[^\s<>|"']*)?`)
 )
 
 // resolveImgurAlbum turns an album/gallery permalink into the media items it
