@@ -165,7 +165,7 @@ collecting a verdict and reacting. Read and adapt them; don't paste them blind.
 **discord.js (v14, Node 18+):**
 
 ```js
-import { Client, Events, GatewayIntentBits } from 'discord.js'
+import { Client, Events, GatewayIntentBits, Routes } from 'discord.js'
 
 const API = 'https://api.goyangi.pics/api/ingest/discord/messages'
 const TOKEN = process.env.GOYANGI_INGEST_TOKEN
@@ -188,15 +188,21 @@ client.on(Events.Raw, (packet) => {
   if (m.author?.id === client.user.id || OWN_WEBHOOKS.has(m.webhook_id)) return // your own posts: section 8
   if (!m.attachments?.length && !m.content?.includes('http')) return
 
-  const posted = (lanes.get(m.channel_id) ?? Promise.resolve()).then(() => post(m))
-  lanes.set(m.channel_id, posted.catch(() => {}))
   // Waiting for a verdict happens outside the lane. Never let a failure become
   // an unhandled rejection: it would take the whole bot down.
-  posted.then((res) => settle(m, res)).catch((err) => console.error('goyangi: forward failed', m.id, err))
+  inLane(m).then((res) => settle(m, res)).catch((err) => console.error('goyangi: forward failed', m.id, err))
 })
 
+// Sends m once the channel's previous message has been answered.
+function inLane(m) {
+  const posted = (lanes.get(m.channel_id) ?? Promise.resolve()).then(() => post(m))
+  lanes.set(m.channel_id, posted.catch(() => {}))
+  return posted
+}
+
 async function roleNames(guildId, ids = []) {
-  const guild = client.guilds.cache.get(guildId)
+  // Right after login the cache can still be empty: fetch what's missing.
+  const guild = client.guilds.cache.get(guildId) ?? (await client.guilds.fetch(guildId).catch(() => null))
   const names = {}
   for (const id of ids) {
     const role = await guild?.roles.fetch(id).catch(() => null) // the cache first, then Discord
@@ -214,8 +220,8 @@ async function post(m) {
   return call(API, { method: 'POST', body })
 }
 
-// One call, retried on timeouts, network errors, 429 and 5xx for up to 30
-// minutes — all safe to repeat (section 7). Anything else is final.
+// One call, retried on timeouts, network errors, 429 and 5xx for 30 minutes —
+// all safe to repeat (section 7). Anything else is final.
 async function call(url, init = {}) {
   const giveUp = Date.now() + 30 * 60_000
   for (let delay = 5_000; ; delay = Math.min(delay * 2, 300_000)) {
@@ -227,18 +233,18 @@ async function call(url, init = {}) {
         signal: AbortSignal.timeout(40_000),
       })
       if (res.status < 500 && res.status !== 429) return res
+      if (Date.now() >= giveUp) return res
       wait = Number(res.headers.get('retry-after')) * 1000 || delay
       await res.body?.cancel()
     } catch (err) {
-      if (Date.now() + wait > giveUp) throw err
+      if (Date.now() >= giveUp) throw err
     }
-    if (Date.now() + wait > giveUp) throw new Error(`goyangi: gave up on ${url}`)
-    await sleep(wait)
+    await sleep(Math.max(0, Math.min(wait, giveUp - Date.now()))) // the last try lands at the deadline
   }
 }
 
 // A 202: check back every 10 s for up to an hour. A 404 there means goyangi
-// restarted; sending the same request again is safe.
+// restarted; the same request again is safe, and goes back through the lane.
 async function settle(m, res) {
   for (let i = 0; res.status === 202 && i < 360; i++) {
     await res.body?.cancel()
@@ -246,7 +252,7 @@ async function settle(m, res) {
     res = await call(`${API}/${m.id}`)
     if (res.status === 404) {
       await res.body?.cancel()
-      res = await post(m)
+      res = await inLane(m)
     }
   }
   if (res.status !== 200) {
@@ -255,7 +261,8 @@ async function settle(m, res) {
   }
   const verdict = await res.json()
   const emoji = { success: '✅', skipped: '⏭️' }[verdict.reaction]
-  if (emoji) await client.channels.cache.get(m.channel_id)?.messages.react(m.id, emoji)
+  // Over REST, so an uncached channel or message doesn't matter.
+  if (emoji) await client.rest.put(Routes.channelMessageOwnReaction(m.channel_id, m.id, encodeURIComponent(emoji)))
 }
 
 client.login(process.env.DISCORD_TOKEN)
@@ -309,11 +316,15 @@ async def on_socket_raw_receive(raw: str):
     if not m.get("attachments") and "http" not in (m.get("content") or ""):
         return
     try:
-        async with lanes[m["channel_id"]]:
-            status, verdict = await post(m)
+        status, verdict = await in_lane(m)
         await settle(m, status, verdict)  # outside the lane
     except Exception:
         logging.exception("goyangi: forward failed for %s", m["id"])
+
+
+async def in_lane(m):
+    async with lanes[m["channel_id"]]:
+        return await post(m)
 
 
 async def role_names(guild_id, ids):
@@ -324,7 +335,7 @@ async def role_names(guild_id, ids):
         try:
             fetched = {str(r.id): r.name for r in await guild.fetch_roles()}
             names.update({rid: fetched[rid] for rid in missing if rid in fetched})
-        except discord.HTTPException:
+        except Exception:
             pass  # goyangi says which roles had no name, in `warnings`
     return names
 
@@ -338,15 +349,16 @@ async def post(m):
     return await call("POST", API, json=body)
 
 
-# One call, retried on timeouts, network errors, 429 and 5xx for up to 30
-# minutes — all safe to repeat (section 7). Anything else is final.
+# One call, retried on timeouts, network errors, 429 and 5xx for 30 minutes —
+# all safe to repeat (section 7). Anything else is final.
 async def call(method, url, **kw):
     give_up, delay = time.monotonic() + 30 * 60, 5
     while True:
         wait = delay
         try:
             async with session().request(method, url, **kw) as res:
-                if res.status < 500 and res.status != 429:
+                final = time.monotonic() >= give_up
+                if (res.status < 500 and res.status != 429) or final:
                     try:
                         return res.status, await res.json(content_type=None)
                     except ValueError:  # not JSON, e.g. an error page on the way
@@ -354,23 +366,23 @@ async def call(method, url, **kw):
                 retry_after = res.headers.get("Retry-After", "")
                 wait = int(retry_after) if retry_after.isdigit() else delay
         except (aiohttp.ClientError, asyncio.TimeoutError):
-            pass
-        if time.monotonic() + wait > give_up:
-            raise RuntimeError(f"goyangi: gave up on {url}")
-        await asyncio.sleep(wait)
+            if time.monotonic() >= give_up:
+                raise
+        # The last try lands at the deadline.
+        await asyncio.sleep(max(0, min(wait, give_up - time.monotonic())))
         delay = min(delay * 2, 300)
 
 
 async def settle(m, status, verdict):
     # A 202: check back every 10 s for up to an hour. A 404 there means goyangi
-    # restarted; sending the same request again is safe.
+    # restarted; the same request again is safe, and goes back through the lane.
     for _ in range(360):
         if status != 202:
             break
         await asyncio.sleep(10)
         status, verdict = await call("GET", f"{API}/{m['id']}")
         if status == 404:
-            status, verdict = await post(m)
+            status, verdict = await in_lane(m)
     if status != 200 or not verdict:
         logging.warning("goyangi: no verdict for %s (HTTP %s): %s", m["id"], status, verdict)
         return
@@ -399,7 +411,7 @@ yours really can't, build the object from the field list in section 4.
 | 404 on POST | The API is switched off, or the path is wrong. | Don't retry; tell goyangi's admin. |
 | 404 on GET | goyangi holds no verdict for that id: an hour since it finished, goyangi restarted, or it was never accepted (a 400 or 503, or a dry run, which isn't kept). | If you were waiting on a 202, send the same POST again — it's safe. |
 | 413 | The body is over 1 MiB. A real message object is a few KB, so the wrong thing is being sent. | Don't retry. |
-| 429 | Rate-limited. Only possible if goyangi turns rate limiting on. | Wait `Retry-After` if given, otherwise 10–30 seconds; retry. |
+| 429 | Rate-limited. Only possible if goyangi turns rate limiting on. | Wait `Retry-After` if given, otherwise back off as for a 5xx; retry. |
 | 503 | Nothing was done: goyangi is restarting (`Retry-After: 60` — a restart waits for running work, so this can last several minutes), or 200 messages are already waiting (`Retry-After: 30`). | Retry after `Retry-After`. |
 | other 5xx, timeout, connection error | Something on the way failed. Cloudflare's own errors may come back as HTML, not JSON. | Retry with backoff (section 7). |
 
@@ -474,7 +486,8 @@ recognise as "no reaction".
 each channel's messages one at a time, in the order the *requests reach it*,
 and different channels don't wait for each other. Follow-ups, replies and
 repeat pings need the message before them handled first; one that arrives
-before its opener comes back `ignored` / `no_trigger` and is lost. Requests sent
+before its opener comes back `ignored` / `no_trigger` and is lost — or, if it
+names an idol, becomes a set of its own. Requests sent
 in parallel can arrive swapped — a retry, a role lookup or plain network timing
 is enough. So keep a lane per channel, as both samples do: send a channel's next
 message only after the previous POST has answered (200, 202 or a 4xx), retries
@@ -491,7 +504,7 @@ timeout to 30–40 seconds.
 - `ignored` and `failed` are the exceptions: a resend is looked at afresh, so
   a download that failed during an outage can succeed later.
 - After an hour, or after goyangi restarts, a message that has posts on the
-  site answers `duplicate` / `already_archived`.
+  site answers `duplicate` / `already_archived` — follow-ups and replies too.
 - If only some of a message's items were saved (others failed, or goyangi
   stopped mid-download), a resend doesn't fetch the rest.
 
@@ -500,7 +513,7 @@ timeout to 30–40 seconds.
 | Got | Do |
 |---|---|
 | timeout, connection error, 5xx, 503 | Retry with backoff (5 s, doubling, at most 5 minutes apart; honour `Retry-After`) for **at least 30 minutes**, holding the channel's later messages meanwhile. Then give up, log it, and catch the message up later. |
-| 429 | Wait `Retry-After`, or 10–30 seconds; retry. |
+| 429 | Wait `Retry-After`, or back off as above; retry. |
 | 202 | Move on; poll the GET every ~10 seconds for up to an hour (time spent behind earlier messages counts). |
 | `failed` / `nothing_saved` | Optionally resend once after a minute or two — not when the items were voice messages or other non-media files. |
 | 400, 401, 404 on POST, 413 | Don't retry. Log it and tell goyangi's admin. |
@@ -546,7 +559,7 @@ That post is archived exactly as if the person had posted it themselves:
 credited to their Discord **username** (not display name), their follow-ups and
 replies through your bot join their sets, and their opt-out applies.
 `relay.user.id` is how their messages are matched; goyangi keeps it in memory
-for up to an hour and never stores it.
+for about an hour and never stores it.
 
 **Anonymous posts are credited too.** Anonymous means anonymous in your
 server: on goyangi, an anonymous post is credited to the person who made it,
@@ -568,18 +581,20 @@ How to send it:
   Discord returns — add `guild_id`, and for a webhook execute it with
   `?wait=true` to get the message back. Keep your general forwarder from also
   sending it (both samples skip your bot's own messages, and messages from the
-  webhooks it posts through — other people's webhooks are forwarded as usual):
-  a copy without `relay` would be ignored (your bot) or credited to the
-  webhook's name (a webhook), and the correct one would then be a duplicate.
+  webhooks it posts through — other people's webhooks are forwarded as usual).
+  A copy from your bot without `relay` is merely ignored, but one from your
+  webhook would be archived under the webhook's name, and the correct one
+  would then be a duplicate.
 - **Order still matters:** send it through the channel's lane like any other
   message.
 - **Take anonymous submissions privately** — by DM, slash command or modal. If
   people post in an archived channel and your bot deletes and reposts the
   message, the original may already have been archived by then, and the
   repost becomes a second copy.
-- `relay` is accepted on messages your bot posted: as itself
-  (`author.id` = `bot_user_id`), as an interaction response or follow-up, or
-  through a webhook. On anything else it's a 400.
+- `relay` is accepted on messages your bot posted as itself
+  (`author.id` = `bot_user_id`) or as an interaction response or follow-up, and
+  on any webhook's message — goyangi can't tell whose webhook it is, so only
+  ever send `relay` on your own. On anything else it's a 400.
 - With `relay`, goyangi ignores the message's other credit signals
   (`interaction_metadata`, "Posted by:" lines). An `uploader:` line the person
   wrote still wins.
@@ -607,7 +622,6 @@ Content-Type: application/json
   "requested_by": {
     "id": "300000000000000000",
     "username": "nabi",
-    "global_name": "Nabi 🐱",
     "roles": ["1300000000000000000"]
   },
   "idols": ["Yujin", "Gaeul — IVE"],
@@ -620,8 +634,8 @@ Content-Type: application/json
 |---|---|---|
 | `message` | yes | The message to archive, under the same rules as section 4. A message fetched over REST lacks `guild_id`: add it. |
 | `bot_user_id` | yes | Your bot's user id. |
-| `requested_by` | yes | The person who ran your command: `id`, `username`, `global_name` (their display name, if they have one) and `roles` (their role ids in this server). |
-| `idols` | yes | Idol names, as typed or picked. A name shared by several groups takes its group after an em dash: `"Gaeul — IVE"`. goyangi record ids work too. |
+| `requested_by` | yes | The person who ran your command: `id`, `username` (their unique Discord username) and `roles` (their role ids in this server). |
+| `idols` | yes | Idol names, as typed or picked. For a name shared by several groups, add the group after an em dash — `"Gaeul — IVE"` — or goyangi picks one of them. goyangi record ids work too. |
 | `tags` | no | Tags. They replace any `tags:` line in the message. |
 | `set` | no | A goyangi set link: add the items to that set instead of a new one. |
 | `dry_run` | no | Run every check, save nothing, and answer with a preview (section 10). |
@@ -630,23 +644,28 @@ Content-Type: application/json
 
 goyangi checks, in this order:
 
-1. **Role.** If goyangi's admin has set roles allowed to archive on request,
-   `requested_by.roles` must include one. Otherwise: `denied` /
-   `no_permission`. Ask goyangi's admin which roles those are, and limit your
-   command to them, so nobody sees an option that will refuse them.
-2. **Account.** The person's display name or username must match a goyangi
+1. **Server.** The message must be from a server goyangi's admin has listed.
+   Otherwise: `denied` / `server_not_listed`.
+2. **Role.** `requested_by.roles` must include one of the roles goyangi's admin
+   has allowed to archive on request — with none set, nobody may. Otherwise:
+   `denied` / `no_permission`. Ask goyangi's admin which roles those are, and
+   limit your command to them (`default_member_permissions`, or a role check of
+   your own), so nobody sees an option that will refuse them.
+3. **Account.** The person's Discord **username** — never their display name,
+   which anyone can set to anything — must be the name or an alias of a goyangi
    uploader that's linked to a goyangi account allowed to upload. Otherwise:
    `denied` / `cannot_upload`, and `reply` says which link is missing.
 
 ### What happens
 
-- Any channel in your server: the agreed-channels list doesn't apply, because
-  someone picked this message on purpose.
-- Credited to the person who asked, not the message's author.
+- Any channel in a listed server: the agreed-channels list doesn't apply,
+  because someone picked this message on purpose.
+- Credited to the person who asked — not the message's author, and not
+  whoever an `uploader:` line in the message names.
 - Dated with the message's own date (a `date:` line in the message wins).
 - The idols sent replace the message's `idol:`/`group:` lines, and the groups
-  come from the idols. `tags` replace a `tags:` line. The message's other
-  `key: value` lines (`title:`, `source:`, `filetype:`, `mirror:`) still apply.
+  come from the idols. `tags` replace a `tags:` line. The message's `title:`,
+  `source:`, `filetype:` and `mirror:` lines still apply.
 - A new set, or the one `set` links to.
 - A message already on the site isn't archived again: `duplicate` /
   `already_archived`, with a reply saying to edit the post on the site.
@@ -662,7 +681,8 @@ archived message as `reaction` says, the same as for forwarded messages.
 | `status` | `reason` | `reply`, for example |
 |---|---|---|
 | `ingested` | — | ✅ Ingested 2 item(s). — or — ⚠️ Ingested 2/3 items. Failed: clip.mp4 |
-| `denied` | `no_permission` | You don't have permission to use this command. |
+| `denied` | `server_not_listed` | goyangi doesn't archive from this server. |
+| | `no_permission` | You don't have permission to use this command. |
 | | `cannot_upload` | Your Discord name isn't linked to a goyangi uploader. Ask an admin to add it. |
 | `failed` | `unknown_idols` | ❌ I don't know: Yujn. (the names are in `unresolved` too) |
 | | `no_idols` | ❌ Pick at least one idol. |
@@ -677,9 +697,10 @@ archived message as `reaction` says, the same as for forwarded messages.
 
 A 202 and `GET /api/ingest/discord/manual/{message id}` work as in section 6
 (manual requests wait the full 25 seconds; they aren't queued behind a
-channel). Resending is safe: the same request gets the same answer for an hour,
-except `denied` and `failed`, which are checked again — so someone whose account
-was just linked can simply try again.
+channel). Resending is safe. A success is kept for an hour — a repeat gets the
+same answer — but anything else is checked afresh on the next request, since it
+may be about the person who asked, or a moment that has passed: the next person
+to ask, or the same one after their account was linked, gets a real answer.
 
 ### Building the command
 
@@ -693,26 +714,30 @@ was just linked can simply try again.
   minutes, under a random key you put in the modal's `custom_id`. Don't put the
   message id itself there: a client can edit a `custom_id`.
 - **Defer the submit as ephemeral**, send the request, then edit the reply with
-  `reply`. On a 202, show something like "Still downloading — this will
-  update." and poll.
+  `reply`. On a 202, say something like "Still downloading — I'll react on the
+  message when it's done." Discord's interaction tokens last 15 minutes, so
+  the reply can't be edited after that; the reaction is the answer.
 - **A slash command with a message link**, like `/reupload`, works too: fetch the
-  message over REST (which needs the Message Content intent), check it's from
-  the same server, add `guild_id`. Slash-command options can autocomplete
-  idols; modals can't.
+  message over REST (which needs the Message Content intent), fetch its channel
+  and check the channel's `guild_id` is this server — the server part of a link
+  proves nothing, since Discord fetches a message by channel and id alone — and
+  add `guild_id`. Slash-command options can autocomplete idols; modals can't.
 - **Idol suggestions:** goyangi's idol list is public. For example
   `GET https://api.goyangi.pics/api/collections/groups_idols/records?filter=(name~'yu'||aliases~'yu')&expand=group&fields=id,name,expand.group.name&perPage=25`.
   Show `Name — Group`, and send what the person picked.
 - **Try it with `dry_run` first:** every check runs, and the preview shows what
   would be archived and to whom it would be credited.
 
-A sketch in discord.js v14, reusing `call` and `sleep` from section 5:
+A sketch in discord.js (14.22 or later, for `LabelBuilder`), reusing `call` and
+`sleep` from section 5:
 
 ```js
 import { randomUUID } from 'node:crypto'
-import { ActionRowBuilder, Events, MessageFlags, ModalBuilder, Routes, TextInputBuilder, TextInputStyle } from 'discord.js'
+import { Events, LabelBuilder, MessageFlags, ModalBuilder, Routes, TextInputBuilder, TextInputStyle } from 'discord.js'
 
-// Registered once, as a message command:
+// Registered once, as a message command, only for those allowed to use it:
 //   new ContextMenuCommandBuilder().setName('Archive on goyangi').setType(ApplicationCommandType.Message)
+//     .setContexts(InteractionContextType.Guild).setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
 
 const MANUAL = 'https://api.goyangi.pics/api/ingest/discord/manual'
 const asked = new Map() // modal key → the message that was right-clicked
@@ -724,14 +749,14 @@ client.on(Events.InteractionCreate, async (i) => {
       asked.set(key, { guildId: i.guildId, channelId: i.channelId, messageId: i.targetId })
       setTimeout(() => asked.delete(key), 15 * 60_000)
       const field = (id, label, required) =>
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Short).setRequired(required),
-        )
+        new LabelBuilder()
+          .setLabel(label)
+          .setTextInputComponent(new TextInputBuilder().setCustomId(id).setStyle(TextInputStyle.Short).setRequired(required))
       await i.showModal(
         new ModalBuilder()
           .setCustomId(`goyangi:${key}`)
           .setTitle('Archive on goyangi')
-          .addComponents(
+          .addLabelComponents(
             field('idols', 'Idols (comma-separated)', true),
             field('tags', 'Tags (optional)', false),
             field('set', 'Add to a goyangi set (optional link)', false),
@@ -742,8 +767,12 @@ client.on(Events.InteractionCreate, async (i) => {
 
     if (i.isModalSubmit() && i.customId.startsWith('goyangi:')) {
       const target = asked.get(i.customId.slice('goyangi:'.length))
-      if (!target) return i.reply({ content: 'That took too long — run the command again.', flags: MessageFlags.Ephemeral })
+      if (!target) {
+        await i.reply({ content: 'That took too long — run the command again.', flags: MessageFlags.Ephemeral })
+        return
+      }
       await i.deferReply({ flags: MessageFlags.Ephemeral })
+      const tokenExpires = Date.now() + 14 * 60_000 // interaction tokens last 15 minutes
 
       // The raw API object, with freshly signed attachment URLs.
       const message = await client.rest.get(Routes.channelMessage(target.channelId, target.messageId))
@@ -752,26 +781,34 @@ client.on(Events.InteractionCreate, async (i) => {
       const body = JSON.stringify({
         message: { ...message, guild_id: target.guildId },
         bot_user_id: client.user.id,
-        requested_by: { id: i.user.id, username: i.user.username, global_name: i.user.globalName, roles },
+        requested_by: { id: i.user.id, username: i.user.username, roles },
         idols: list(i.fields.getTextInputValue('idols')),
         tags: list(i.fields.getTextInputValue('tags')),
         set: i.fields.getTextInputValue('set').trim(),
       })
 
       let res = await call(MANUAL, { method: 'POST', body })
-      if (res.status === 202) await i.editReply('Still downloading — this will update.')
+      if (res.status === 202) await i.editReply("Still downloading — I'll react on the message when it's done.")
       for (let n = 0; res.status === 202 && n < 360; n++) {
         await res.body?.cancel()
         await sleep(10_000)
         res = await call(`${MANUAL}/${target.messageId}`)
       }
       const answer = res.status === 200 ? await res.json() : null
-      await i.editReply(answer?.reply ?? "goyangi didn't answer. Try again in a minute.")
+      if (!answer) console.warn('goyangi: no answer', target.messageId, res.status, await res.text())
+
+      // The reaction first: it's the answer that survives the token expiring.
       const emoji = { success: '✅', skipped: '⏭️' }[answer?.reaction]
-      if (emoji) await client.channels.cache.get(target.channelId)?.messages.react(target.messageId, emoji)
+      if (emoji) {
+        await client.rest.put(Routes.channelMessageOwnReaction(target.channelId, target.messageId, encodeURIComponent(emoji)))
+      }
+      if (Date.now() < tokenExpires) {
+        await i.editReply(answer?.reply ?? `goyangi couldn't take that (HTTP ${res.status}).`).catch(() => {})
+      }
     }
   } catch (err) {
     console.error('goyangi: archive command failed', err)
+    if (i.isRepliable() && i.deferred) await i.editReply('Something went wrong.').catch(() => {})
   }
 })
 ```
@@ -779,7 +816,7 @@ client.on(Events.InteractionCreate, async (i) => {
 The sketch fetches the message again after the modal (your bot has the intent,
 and it gets fresh attachment URLs). A bot without the intent would keep the
 message Discord delivered with the command instead — from the raw
-`INTERACTION_CREATE` payload's `data.resolved.messages`.
+`INTERACTION_CREATE` payload's `data.resolved.messages` — and add `guild_id`.
 
 ## 10. Dry runs and testing
 
@@ -975,7 +1012,7 @@ empty set is left behind. Posts are dated when goyangi archives them unless a
   URL (signed, and expiring within a day). The server's output can also show
   item URLs, role names, credited names, and a `source:`/`mirror:` line that
   wasn't a link.
-- **Discord user ids** (authors, `relay.user.id`) are held in memory for up to an
+- **Discord user ids** (authors, `relay.user.id`) are held in memory for about an
   hour to match follow-ups, and never stored.
 - Forward only the agreed channels. Never DMs.
 - **Deleted Discord messages stay archived**: goyangi doesn't follow deletes.
@@ -1017,6 +1054,7 @@ empty set is left behind. Posts are dated when goyangi archives them unless a
 | 400 "`message.guild_id` is required" | A message fetched over REST: add `guild_id`. |
 | 400 about an attachment not on Discord's CDN | Attachment URLs must be sent exactly as Discord gave them. |
 | 400 "`relay` is only for messages your bot posted" | `relay` on someone else's message, or `bot_user_id` is wrong. |
+| Manual requests come back `denied` | `server_not_listed`: ask goyangi's admin to list the server. `no_permission`: the person lacks the roles (or none are set). `cannot_upload`: their Discord username isn't linked to a goyangi uploader — `reply` says which link is missing. |
 | Dry runs come back `duplicate` during the shadow | goyangi's own bot got there first. Compare the preview. |
 | 401 | The token is wrong or was rotated. |
 | 404 on POST | The API is switched off on goyangi's side. |
@@ -1037,5 +1075,5 @@ empty set is left behind. Posts are dated when goyangi archives them unless a
 - [ ] After a 202, poll the GET for up to an hour; on a 404 there, resend the POST.
 - [ ] React from `reaction`: `success` → ✅, `skipped` → ⏭️, anything else → nothing.
 - [ ] Never let a failed request crash the bot. Never log the token.
-- [ ] Optional: "Archive on goyangi" (section 9).
+- [ ] Optional: "Archive on goyangi" (section 9), limited to the allowed roles, sending the username — not the display name.
 - [ ] Shadow-run with `"dry_run": true` before going live.

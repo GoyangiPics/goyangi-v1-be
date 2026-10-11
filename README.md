@@ -459,11 +459,17 @@ How the two doors stay one:
   long forwarded download can't stall slash commands.
 
 "Ingest this message" has a door too: `POST /api/ingest/discord/manual` takes the
-message, who asked (with their roles) and the idols, and runs the same gates
-and pipeline as our context menu and `/reupload` (`manualIngestCore` in
-`bot/reupload.go`): `DISCORD_INGEST_ROLE_IDS`, the upload-permission check,
-credit to the requester, the message's own date. Unlike our commands, it
-refuses a message that's already on the site rather than archiving it twice.
+message, who asked (with their roles) and the idols, and runs the same pipeline
+as our context menu and `/reupload` (`manualIngestCore` in `bot/reupload.go`):
+credit to the requester, the message's own date, an optional set to join. Its
+gates are stricter than our commands', which Discord itself helps guard:
+
+- the message's server must be in `INGEST_GUILD_IDS` (unset: no manual
+  requests);
+- the requester must hold one of `DISCORD_INGEST_ROLE_IDS` (unset: nobody);
+- the requester is matched to an uploader by Discord username only, never by
+  display name;
+- a message already on the site is refused rather than archived twice.
 
 The API answers within 25 seconds or with a 202 to collect later (it's behind
 Cloudflare's 100-second limit); queues at most 200 messages, then answers 503;
@@ -481,9 +487,10 @@ still show and fail — remove it from servers it won't serve.
 Switching over, reversibly:
 
 1. Set `INGEST_API_TOKEN` and `INGEST_BOT_USER_IDS`, check
-   `DISCORD_ALLOWED_CHANNEL_IDS` lists the other server's channels (and
-   `DISCORD_INGEST_ROLE_IDS` its archive-on-request roles), deploy, and give the
-   token and the guide to the other bot's developer.
+   `DISCORD_ALLOWED_CHANNEL_IDS` lists the other server's channels, and — for
+   manual requests — set `INGEST_GUILD_IDS` to the server and check
+   `DISCORD_INGEST_ROLE_IDS` holds its archive-on-request roles. Deploy, and
+   give the token and the guide to the other bot's developer.
 2. Shadow: they forward with `"dry_run": true` while our bot keeps archiving,
    and compare. Nothing is saved — except the posts their bot makes for people,
    which they send for real: our bot leaves those to them.
