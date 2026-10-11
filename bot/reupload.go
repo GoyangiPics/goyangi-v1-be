@@ -346,9 +346,134 @@ type manualIngest struct {
 	uploader string
 }
 
+// resolveJoinSet validates an optional "add to this set" link, returning the
+// set's id ("" for no link), or a refusal shown to the person who asked. Checked
+// before anything slow, so a bad or unknown set fails fast with a clear reason.
+func resolveJoinSet(setRaw string) (setID, refusal string) {
+	setLink := strings.TrimSpace(setRaw)
+	if setLink == "" {
+		return "", ""
+	}
+	sref, err := parseSetLink(setLink)
+	if err != nil {
+		return "", err.Error()
+	}
+	if sref.kind != "set" {
+		return "", "That looks like a collection link — paste a set link (…/set/<id>)."
+	}
+	// Confirm the set exists so the contents' `set` relation can't dangle.
+	if _, err := App.FindRecordById("contents_sets", sref.id); err != nil {
+		return "", "I couldn't find that set — double-check the link."
+	}
+	return sref.id, ""
+}
+
+// manualResult is what manualIngestCore did with a request.
+type manualResult struct {
+	// attempted is false when the request was refused before the pipeline ran;
+	// refusal and refusalCode then say why.
+	attempted   bool
+	refusal     string
+	refusalCode string
+	outcome     ingestOutcome
+	metadata    Metadata
+	items       []MediaItem
+}
+
+// manualIngestCore is everything a manual ingest does once the message is in
+// hand and the person asking has been checked: collect the media, build the
+// metadata, claim the message and run the pipeline. Shared by our own commands
+// (runManualIngest) and the ingest API's manual route, so the date rule, the
+// claim and the credit can't drift between them. A dry run stops before the
+// claim.
+func manualIngestCore(msg discord.Message, guildID snowflake.ID, req manualIngest, joinSetID string, dryRun bool) manualResult {
+	var items []MediaItem
+	if dryRun {
+		// No album lookups in a dry run: see inboundMessage.collectMedia.
+		items = collectMediaUnresolved(msg)
+	} else {
+		items = collectMedia(msg)
+	}
+	if len(items) == 0 {
+		return manualResult{refusal: "No ingestible media found in that message (attachments or supported links).", refusalCode: reasonNoMedia}
+	}
+
+	idolList := strings.Join(req.idolNames, ", ")
+	groupList := strings.Join(req.groupNames, ", ")
+
+	// Seeded BEFORE extractMetadata for two reasons: it stops the
+	// required-idol/group check inside from failing, and it makes the derived
+	// title sensible. Re-asserted after, because a message with its own
+	// `idol:`/`group:` lines would otherwise override the explicit options — and
+	// the options are what the caller actually asked for.
+	metadata := Metadata{
+		Idol:     idolList,
+		Group:    groupList,
+		Uploader: req.uploader,
+	}
+	if err := extractMetadata(msg.Content, &metadata); err != nil {
+		return manualResult{refusal: err.Error(), refusalCode: reasonNoIdols}
+	}
+	metadata.Idol, metadata.Group = idolList, groupList
+
+	// Tags from the command win over any `tags:` line, for the same reason the
+	// idols do: they are what the caller explicitly asked for.
+	if picked := splitTrim(req.tagsRaw); len(picked) > 0 {
+		metadata.Tags = strings.Join(picked, ", ")
+	}
+
+	// The content is as old as the message it came from, not as old as the
+	// reupload. YYMMDD is the form normalizeDate parses and the one
+	// createSetRecord prefixes set titles with, so this drives both. A `date:`
+	// line in the message still wins — that is someone stating the real date.
+	if metadata.Date == "" {
+		metadata.Date = msg.ID.Time().UTC().Format("060102")
+	}
+
+	// fillMessageDefaults only fills Uploader when empty, so the caller set above
+	// survives and the message author is NOT credited. It also stamps
+	// metadata.Discord, which makes the origin hook mark these records as
+	// discord-sourced — correct, the media did come from Discord.
+	fillMessageDefaults(&metadata, msg, guildID)
+
+	// An explicit set link routes the items into that set; a non-empty
+	// joinSetID also makes runIngestion skip creating a new set (it treats a
+	// pre-set SetId the same way it treats a reply that joins an existing set).
+	if joinSetID != "" {
+		metadata.SetId = joinSetID
+	}
+
+	if dryRun {
+		if isClaimed(msg.ID.String()) {
+			return manualResult{refusal: "That message was already ingested recently.", refusalCode: reasonAlreadyHandled, metadata: metadata, items: items}
+		}
+		return manualResult{metadata: metadata, items: items}
+	}
+
+	if !claimMessage(msg.ID.String()) {
+		return manualResult{refusal: "That message was already ingested recently.", refusalCode: reasonAlreadyHandled}
+	}
+	// As in ingestInbound: a panic mustn't leave the message claimed.
+	defer func() {
+		if r := recover(); r != nil {
+			releaseClaim(msg.ID.String())
+			panic(r)
+		}
+	}()
+
+	outcome := runIngestion(metadata, items, joinSetID != "", false)
+	logOutcome(outcome, metadata.Discord)
+	// Nothing saved: give the message back, so running the command again is a
+	// real second attempt rather than "already ingested recently".
+	if outcome.created == 0 {
+		releaseClaim(msg.ID.String())
+	}
+	return manualResult{attempted: true, outcome: outcome, metadata: metadata, items: items}
+}
+
 // runManualIngest is everything the two manual paths do once their input is
-// resolved: validate an optional set link, fetch the message, collect its media,
-// build the metadata and run the pipeline.
+// resolved: validate an optional set link, fetch the message, and hand it to
+// manualIngestCore.
 //
 // Shared because the context menu is, as of the modal, exactly /reupload with a
 // different way of asking the same three questions. It was already a near-copy
@@ -358,28 +483,12 @@ func runManualIngest(r *reply, req manualIngest) {
 	client := r.e.Client()
 
 	// Optional: add these items to an existing set instead of creating a new
-	// one. Validate the link now — before the slow defer/download — so a bad or
-	// unknown set fails fast with a clear reason. The id is applied to the
-	// metadata below; a non-empty joinSetID also tells runIngestion to skip
-	// new-set creation and route the items into this set instead.
-	var joinSetID string
-	if setLink := strings.TrimSpace(req.setRaw); setLink != "" {
-		sref, perr := parseSetLink(setLink)
-		if perr != nil {
-			// Fail prefixes the ❌ itself.
-			r.Fail("%s", perr.Error())
-			return
-		}
-		if sref.kind != "set" {
-			r.Fail("%s", "That looks like a collection link — paste a set link (…/set/<id>).")
-			return
-		}
-		// Confirm the set exists so the contents' `set` relation can't dangle.
-		if _, ferr := App.FindRecordById("contents_sets", sref.id); ferr != nil {
-			r.Fail("%s", "I couldn't find that set — double-check the link.")
-			return
-		}
-		joinSetID = sref.id
+	// one. Validated now — before the slow defer/download.
+	joinSetID, refusal := resolveJoinSet(req.setRaw)
+	if refusal != "" {
+		// Fail prefixes the ❌ itself.
+		r.Fail("%s", refusal)
+		return
 	}
 
 	// Download + transcode is slow, so acknowledge before doing any of it.
@@ -406,9 +515,11 @@ func runManualIngest(r *reply, req manualIngest) {
 		return
 	}
 
-	// A REST fetch is NOT gated by the MESSAGE_CONTENT intent — intents only
-	// affect gateway events — so content and attachments come back in full, and
-	// attachment URLs come back freshly signed.
+	// A REST fetch returns freshly signed attachment URLs. It is still subject
+	// to the MESSAGE_CONTENT intent — Discord gates message content "across the
+	// APIs", REST included — so without the intent this comes back with no
+	// content and no attachments. (The message a context-menu command targets
+	// is exempt, but this path fetches it again rather than using that copy.)
 	msg, err := client.Rest.GetMessage(req.channelID, req.messageID)
 	if err != nil {
 		slog.Warn("reupload: could not fetch message", "channel", req.channelID, "message", req.messageID, "err", err)
@@ -422,71 +533,17 @@ func runManualIngest(r *reply, req manualIngest) {
 		return
 	}
 
-	items := collectMedia(*msg)
-	if len(items) == 0 {
-		r.Fail("No ingestible media found in that message (attachments or supported links).")
+	res := manualIngestCore(*msg, req.guildID, req, joinSetID, false)
+	if !res.attempted {
+		r.Fail("%s", res.refusal)
 		return
 	}
-
-	idolList := strings.Join(req.idolNames, ", ")
-	groupList := strings.Join(req.groupNames, ", ")
-
-	// Seeded BEFORE extractMetadata for two reasons: it stops the
-	// required-idol/group check inside from failing, and it makes the derived
-	// title sensible. Re-asserted after, because a message with its own
-	// `idol:`/`group:` lines would otherwise override the explicit options — and
-	// the options are what the caller actually asked for.
-	metadata := Metadata{
-		Idol:     idolList,
-		Group:    groupList,
-		Uploader: req.uploader,
-	}
-	if err := extractMetadata(msg.Content, &metadata); err != nil {
-		r.Fail("%s", err.Error())
-		return
-	}
-	metadata.Idol, metadata.Group = idolList, groupList
-
-	// Tags from the command win over any `tags:` line, for the same reason the
-	// idols do: they are what the caller explicitly asked for.
-	if picked := splitTrim(req.tagsRaw); len(picked) > 0 {
-		metadata.Tags = strings.Join(picked, ", ")
-	}
-
-	// The content is as old as the message it came from, not as old as the
-	// reupload. YYMMDD is the form normalizeDate parses and the one
-	// createSetRecord prefixes set titles with, so this drives both. A `date:`
-	// line in the message still wins — that is someone stating the real date.
-	if metadata.Date == "" {
-		metadata.Date = msg.CreatedAt.UTC().Format("060102")
-	}
-
-	if !claimMessage(req.messageID.String()) {
-		r.Fail("That message was already ingested recently.")
-		return
-	}
-
-	// fillMessageDefaults only fills Uploader when empty, so the caller set above
-	// survives and the message author is NOT credited. It also stamps
-	// metadata.Discord, which makes the origin hook mark these records as
-	// discord-sourced — correct, the media did come from Discord.
-	fillMessageDefaults(&metadata, *msg, req.guildID)
-
-	// An explicit set link routes the items into that set; a non-empty
-	// joinSetID also makes runIngestion skip creating a new set (it treats a
-	// pre-set SetId the same way it treats a reply that joins an existing set).
-	if joinSetID != "" {
-		metadata.SetId = joinSetID
-	}
-
-	outcome := runIngestion(metadata, items, joinSetID != "", false)
 
 	// React on the source message so the channel it came from shows it was
 	// processed, the same signal the context menu leaves.
-	reactTo(client, msg.ChannelID, msg.ID, outcome.emoji())
-	logOutcome(outcome, metadata.Discord)
+	reactTo(client, msg.ChannelID, msg.ID, res.outcome.emoji())
 
 	// Ephemeral: the effect is on the site and on the source message, so a
 	// channel post here would be noise in whatever channel this was run in.
-	r.Private("%s", outcome.text())
+	r.Private("%s", res.outcome.text())
 }

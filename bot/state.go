@@ -46,7 +46,12 @@ func lookupSet(messageID string) (Metadata, bool) {
 	setRegistryMu.Lock()
 	defer setRegistryMu.Unlock()
 	e, ok := setRegistry[messageID]
-	return e.meta, ok
+	// Swept only when a new set is remembered, so an entry can outlive the
+	// hour; it must not still answer once it has.
+	if !ok || time.Since(e.createdAt) > stateTTL {
+		return Metadata{}, false
+	}
+	return e.meta, true
 }
 
 // forgetSet drops a set that ended up holding nothing (runIngestion deletes

@@ -228,6 +228,33 @@ func collectMedia(m discord.Message) []MediaItem {
 	return items
 }
 
+// collectMediaUnresolved is collectMedia without the network: imgur albums and
+// galleries are listed as themselves (Filetype "album") rather than looked up.
+// For dry runs, which must answer quickly and record nothing.
+func collectMediaUnresolved(m discord.Message) []MediaItem {
+	var items []MediaItem
+	seen := map[string]bool{}
+	add := func(it MediaItem) {
+		if it.URL == "" || seen[it.URL] {
+			return
+		}
+		seen[it.URL] = true
+		items = append(items, it)
+	}
+	for _, attach := range m.Attachments {
+		add(attachmentToItem(attach))
+	}
+	content := stripMetadataLines(m.Content)
+	for _, link := range imgurAlbumRegexp.FindAllString(content, -1) {
+		add(MediaItem{URL: link, Filetype: "album"})
+	}
+	// With the albums cut out, nothing below makes a request.
+	for _, it := range extractMediaLinks(imgurAlbumRegexp.ReplaceAllString(content, "")) {
+		add(it)
+	}
+	return items
+}
+
 // attachmentToItem classifies a Discord attachment by its Content-Type,
 // falling back to the filename extension.
 func attachmentToItem(a discord.Attachment) MediaItem {

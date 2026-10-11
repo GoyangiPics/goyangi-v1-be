@@ -83,6 +83,16 @@ func (in inboundMessage) jumpLink() string {
 	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", in.guildID, in.msg.ChannelID, in.msg.ID)
 }
 
+// collectMedia is the message's media. A dry run lists imgur albums as
+// themselves instead of looking them up: it has to answer quickly, and a lookup
+// is a network call that may fail and log.
+func (in inboundMessage) collectMedia() []MediaItem {
+	if in.dryRun {
+		return collectMediaUnresolved(in.msg)
+	}
+	return collectMedia(in.msg)
+}
+
 // postedAt is when the message was posted, read from its id: Discord's clock,
 // not ours.
 func (in inboundMessage) postedAt() time.Time {
@@ -104,6 +114,8 @@ const (
 	statusIngested ingestStatus = "ingested"
 	// Attempted, and nothing was saved. The detail is in system_logs.
 	statusFailed ingestStatus = "failed"
+	// A manual request from someone who may not make it. Nothing was done.
+	statusDenied ingestStatus = "denied"
 )
 
 // Why, as stable codes. The ingest API hands them to another developer's bot,
@@ -123,6 +135,13 @@ const (
 	reasonUnresolved       = "unresolved_names"
 	reasonNothingSaved     = "nothing_saved"
 	reasonInternal         = "internal_error"
+
+	// Manual requests ("Ingest this message" from another bot) only.
+	reasonNoPermission = "no_permission" // lacks every DISCORD_INGEST_ROLE_IDS role
+	reasonCannotUpload = "cannot_upload" // not linked to a goyangi account allowed to upload
+	reasonBadSet       = "bad_set"       // the set link is wrong or the set doesn't exist
+	reasonUnknownIdols = "unknown_idols" // names goyangi doesn't know
+	reasonNoIdols      = "no_idols"      // none given
 )
 
 // ingestResult is the verdict on one inbound message.
@@ -148,6 +167,12 @@ func (r ingestResult) reaction() string {
 }
 
 // onMessageCreate feeds the passive triggers (1–3) from our own gateway.
+//
+// It takes the message's place in its channel's line right here, in the
+// gateway's order, and does the work in a goroutine. disgo runs listeners one
+// at a time, slash commands included, so waiting here — behind a forwarded
+// message's long download in the same channel, say — would stall every event
+// the bot gets.
 func onMessageCreate(e *events.MessageCreate) {
 	defer recoverHandler("messageCreate")
 
@@ -155,21 +180,26 @@ func onMessageCreate(e *events.MessageCreate) {
 	if e.GuildID == nil {
 		return
 	}
-	// Behind anything the ingest API is still doing in this channel.
 	turn := queueTurn(e.ChannelID)
-	turn.wait()
-	defer turn.release()
-
 	client, guildID := e.Client(), *e.GuildID
-	result := ingestInbound(inboundMessage{
+	in := inboundMessage{
 		msg:     e.Message,
 		guildID: guildID,
 		door:    client.ApplicationID,
 		roleNames: func(ids []snowflake.ID) ([]string, error) {
 			return getRoleNamesFromIDs(client, guildID, ids)
 		},
-	})
-	reactTo(client, e.ChannelID, e.MessageID, result.reaction())
+	}
+
+	// Counted in Busy() until done, like the handler it continues.
+	handlersInFlight.Add(1)
+	go func() {
+		defer handlersInFlight.Add(-1)
+		defer turn.release()
+		defer recoverHandler("messageCreate")
+		turn.wait()
+		reactTo(client, e.ChannelID, e.MessageID, ingestInbound(in).reaction())
+	}()
 }
 
 // ─── Which bots stand for goyangi ────────────────────────────────────────────
@@ -339,12 +369,18 @@ func ingestInbound(in inboundMessage) ingestResult {
 		return ingestResult{status: statusDuplicate, reason: reasonAlreadyArchived}
 	}
 
-	channelID := msg.ChannelID.String()
+	// A panic past this point would leave the message claimed for an hour,
+	// though nothing was saved — and a retry would be turned away as already
+	// handled. Give it back, then let the panic carry on to the handler's guard.
+	defer func() {
+		if r := recover(); r != nil {
+			releaseClaim(msg.ID.String())
+			panic(r)
+		}
+	}()
 
-	// Spent here rather than in peekChain, so a redelivery that never gets past
-	// the claim above can't burn a follow-up slot.
+	channelID := msg.ChannelID.String()
 	if plan.viaChain {
-		consumeChain(channelID, in.poster.key, in.postedAt())
 		// No author id in the line: stdout lands in the host journal with
 		// unbounded retention, and the set's own discord link identifies the
 		// message if one ever needs reviewing.
@@ -366,6 +402,13 @@ func ingestInbound(in inboundMessage) ingestResult {
 
 	outcome := runIngestion(plan.metadata, plan.items, plan.joinsSet, true)
 	logOutcome(outcome, in.jumpLink())
+
+	// The follow-up slot is spent only by a follow-up that landed: one whose
+	// items all failed hasn't joined anything, and its retry mustn't pay twice.
+	// Spent after the claim, too, so a redelivery can't burn one.
+	if plan.viaChain && outcome.created > 0 {
+		consumeChain(channelID, in.poster.key, in.postedAt())
+	}
 
 	result := ingestResult{status: statusFailed, reason: reasonNothingSaved, outcome: outcome}
 	switch {
@@ -649,7 +692,7 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 		return ingestPlan{skipped: reasonReannouncement}
 	}
 
-	items := collectMedia(msg)
+	items := in.collectMedia()
 	if len(items) == 0 {
 		return ingestPlan{ignored: reasonNoMedia}
 	}
@@ -659,15 +702,14 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 	// Explicit @-mention.
 	case mentioned:
 		metadata := Metadata{}
-		if err := extractMetadata(msg.Content, &metadata); err != nil {
-			// No `idol:` and `group:` lines. The text may still name an idol, so
-			// it gets the chance it would have had without the mention: a bot
-			// that does other things too gets mentioned for those as well, and
-			// a mention mustn't make a message worse off than no mention.
-			slog.Info("@-mention without idol/group lines, trying the text", "discord", in.jumpLink())
-			return textDetection(in, items, nil)
+		if err := extractMetadata(msg.Content, &metadata); err == nil {
+			return ingestPlan{metadata: metadata, items: items, ok: true, trigger: "mention"}
 		}
-		return ingestPlan{metadata: metadata, items: items, ok: true, trigger: "mention"}
+		// No `idol:` and `group:` lines. The message gets every chance it
+		// would have had without the mention — a reply, a follow-up, the text —
+		// because a bot that does other things too gets mentioned for those as
+		// well, and a mention mustn't make a message worse off than none.
+		slog.Info("@-mention without idol/group lines, carrying on without it", "discord", in.jumpLink())
 
 	// Role ping: passive ingestion.
 	case len(msg.MentionRoles) > 0:
@@ -703,15 +745,16 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 			}
 		}
 		return ingestPlan{metadata: metadata, items: items, ok: true, trigger: "role_ping"}
+	}
 
 	// Reply, by the same person, to a message that created a set: append to it.
-	case repliedTo(msg) != 0 && key != "":
-		if remembered, found := lookupSet(repliedTo(msg).String()); found && remembered.AuthorID == key {
+	// A reply to something else entirely can still be a plain follow-up in a
+	// drop — people reply to their own earlier message just for threading — so
+	// a miss here falls through to the chain check.
+	if replied := repliedTo(msg); replied != 0 && key != "" {
+		if remembered, found := lookupSet(replied.String()); found && remembered.AuthorID == key {
 			return ingestPlan{metadata: remembered, items: items, joinsSet: true, ok: true, trigger: "reply"}
 		}
-		// A reply to something else entirely can still be a plain follow-up in a
-		// drop — people reply to their own earlier message just for threading —
-		// so this falls through to the chain check rather than returning.
 	}
 
 	// A bare follow-up: no trigger of its own (anything with one was handled

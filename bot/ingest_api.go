@@ -38,6 +38,8 @@ import (
 //
 //	POST /api/ingest/discord/messages        offer one message
 //	GET  /api/ingest/discord/messages/{id}   the verdict on one
+//	POST /api/ingest/discord/manual          "Ingest this message", asked for
+//	GET  /api/ingest/discord/manual/{id}     the answer to one (ingest_manual.go)
 //
 // Both need `Authorization: Bearer <INGEST_API_TOKEN>`. Without the variable set
 // the routes don't exist.
@@ -84,6 +86,26 @@ var discordAttachmentHosts = map[string]bool{
 // isDraining reports a supervised restart in progress. A var for the tests.
 var isDraining = hooks.Draining
 
+// queuedWait is how long a POST holds out when its message is waiting behind
+// others in its channel. Short, so a client sending a channel's messages one at
+// a time isn't held up for each one; the answer comes later from the GET.
+var queuedWait = 3 * time.Second
+
+// ingestBotIDs are the bots allowed to forward, from INGEST_BOT_USER_IDS
+// (comma-separated). Pinned in config so they're known from boot — our own bot
+// leaves their posts to the API even before their first request after a
+// restart — and so a wrong bot_user_id is refused rather than trusted: every
+// id a request names becomes "one of goyangi's bots", whose posts are never
+// content. Unset: any bot_user_id is accepted, and becomes known when it first
+// forwards. A var for the tests.
+var ingestBotIDs = func() map[snowflake.ID]bool {
+	m := map[snowflake.ID]bool{}
+	for _, id := range csvSnowflakeEnv("INGEST_BOT_USER_IDS", "") {
+		m[id] = true
+	}
+	return m
+}()
+
 // ingestTokens are the accepted bearer tokens. Comma-separated, so a token can
 // be rotated without downtime: add the new one, switch the bot, drop the old.
 func ingestTokens() []string {
@@ -108,14 +130,19 @@ func RegisterIngestAPI(app core.App) {
 		registerIngestRoutes(e, tokens)
 		return e.Next()
 	})
-	slog.Info("ingest API enabled", "tokens", len(tokens))
+	for id := range ingestBotIDs {
+		rememberForwarder(id)
+	}
+	slog.Info("ingest API enabled", "tokens", len(tokens), "bots", len(ingestBotIDs))
 }
 
 func registerIngestRoutes(e *core.ServeEvent, tokens []string) {
 	g := e.Router.Group("/api/ingest/discord")
 	g.BindFunc(requireIngestToken(tokens))
 	g.POST("/messages", handleIngestPost).Bind(apis.BodyLimit(maxIngestBody))
-	g.GET("/messages/{id}", handleIngestStatus)
+	g.GET("/messages/{id}", jobStatusHandler(""))
+	g.POST("/manual", handleManualPost).Bind(apis.BodyLimit(maxIngestBody))
+	g.GET("/manual/{id}", jobStatusHandler(manualJobPrefix))
 }
 
 // requireIngestToken checks the bearer token in constant time. A route-level
@@ -179,6 +206,8 @@ type ingestResponse struct {
 	// Names that matched nothing: "idol X", "group Y".
 	Unresolved []string `json:"unresolved,omitempty"`
 	Set        string   `json:"set,omitempty"`
+	// For a manual request: what to tell the person who asked, ready to show.
+	Reply string `json:"reply,omitempty"`
 	// Problems with the request that didn't stop it, such as a pinged role
 	// sent without a name.
 	Warnings []string       `json:"warnings,omitempty"`
@@ -212,7 +241,7 @@ func handleIngestPost(e *core.RequestEvent) error {
 		if errors.Is(err, apis.ErrRequestEntityTooLarge) {
 			return apis.ErrRequestEntityTooLarge
 		}
-		return e.BadRequestError("Body must be JSON: {message, roles, bot_user_id}.", nil)
+		return e.BadRequestError("Body must be JSON: {message, roles, bot_user_id} ("+err.Error()+").", nil)
 	}
 	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
 		return e.BadRequestError("Body must be a single JSON object.", nil)
@@ -221,27 +250,45 @@ func handleIngestPost(e *core.RequestEvent) error {
 	if err != nil {
 		return e.BadRequestError(err.Error(), nil)
 	}
-	rememberForwarder(in.door)
 	id := in.msg.ID.String()
 
-	// A dry run changes nothing, so it needs no place in the channel's line and
-	// no job to collect later: it answers here.
+	// A dry run changes nothing — not even which bots goyangi knows — so it
+	// needs no place in the channel's line and no job to collect later: it
+	// answers here.
 	if in.dryRun {
 		resp := responseFor(id, ingestInbound(in))
 		resp.DryRun, resp.Reaction, resp.Warnings = true, "", warnings
 		return e.JSON(http.StatusOK, resp)
 	}
 
-	job, ok := startIngestJob(in, warnings)
+	rememberForwarder(in.door)
+
+	// Queued now, while the request is in hand, so the channel's line follows
+	// the order requests arrived in rather than goroutine scheduling.
+	channel := in.msg.ChannelID
+	job, ok, behind := startJob(id, func() *channelTurn { return queueTurn(channel) }, func() ingestResponse {
+		resp := responseFor(id, ingestInbound(in))
+		resp.Warnings = warnings
+		return resp
+	})
+	wait := ingestWait
+	if behind {
+		wait = queuedWait
+	}
+	return answerJob(e, id, job, ok, wait)
+}
+
+// answerJob waits up to `wait` for a job's answer: 200 with it, 202 while it
+// runs on, 503 when there was no room to start it.
+func answerJob(e *core.RequestEvent, id string, job *ingestJob, ok bool, wait time.Duration) error {
 	if !ok {
 		e.Response.Header().Set("Retry-After", "30")
 		return e.Error(http.StatusServiceUnavailable, "goyangi is busy; retry shortly.", nil)
 	}
-
 	select {
 	case <-job.done:
 		return e.JSON(http.StatusOK, job.response)
-	case <-time.After(ingestWait):
+	case <-time.After(wait):
 		return e.JSON(http.StatusAccepted, processingResponse(id, true))
 	case <-e.Request.Context().Done():
 		// The caller hung up, or the server is shutting down. Answer as if the
@@ -250,20 +297,23 @@ func handleIngestPost(e *core.RequestEvent) error {
 	}
 }
 
-func handleIngestStatus(e *core.RequestEvent) error {
-	id := e.Request.PathValue("id")
-	ingestJobsMu.Lock()
-	sweepIngestJobsLocked(time.Now())
-	job, ok := ingestJobs[id]
-	finished := ok && !job.finished.IsZero()
-	ingestJobsMu.Unlock()
-	switch {
-	case !ok:
-		return e.NotFoundError("No recent ingest for that message.", nil)
-	case !finished:
-		return e.JSON(http.StatusAccepted, processingResponse(id, false))
-	default:
-		return e.JSON(http.StatusOK, job.response)
+// jobStatusHandler answers GET …/{id} for the jobs under a key prefix.
+func jobStatusHandler(prefix string) func(*core.RequestEvent) error {
+	return func(e *core.RequestEvent) error {
+		id := e.Request.PathValue("id")
+		ingestJobsMu.Lock()
+		sweepIngestJobsLocked(time.Now())
+		job, ok := ingestJobs[prefix+id]
+		finished := ok && !job.finished.IsZero()
+		ingestJobsMu.Unlock()
+		switch {
+		case !ok:
+			return e.NotFoundError("No recent ingest for that message.", nil)
+		case !finished:
+			return e.JSON(http.StatusAccepted, processingResponse(id, false))
+		default:
+			return e.JSON(http.StatusOK, job.response)
+		}
 	}
 }
 
@@ -286,14 +336,15 @@ func sweepIngestJobsLocked(now time.Time) {
 
 // retryableLocked reports whether a repeated POST should run a finished job
 // again: when nothing was decided that a second look could change — an
-// `ignored` (an imgur album that didn't resolve last time may now) — or when
-// nothing was saved, so the claim was given back (ingestInbound).
+// `ignored` (an imgur album that didn't resolve last time may now), a `denied`
+// (permissions may have been fixed since) — or when nothing was saved, so the
+// claim was given back.
 func (j *ingestJob) retryableLocked() bool {
 	if j.finished.IsZero() {
 		return false
 	}
 	switch ingestStatus(j.response.Status) {
-	case statusIgnored:
+	case statusIgnored, statusDenied:
 		return true
 	case statusFailed:
 		return j.response.Created == 0
@@ -301,28 +352,30 @@ func (j *ingestJob) retryableLocked() bool {
 	return false
 }
 
-// startIngestJob queues the message in its channel's line and runs it in the
-// background, or returns the job already running (or finished) for it. ok is
-// false when too much is already pending.
-func startIngestJob(in inboundMessage, warnings []string) (job *ingestJob, ok bool) {
-	id := in.msg.ID.String()
-
+// startJob runs a job in the background under key, or returns the job already
+// running (or finished) under it. queue, when set, takes the message's place in
+// its channel's line; it runs while the registry is locked, so places follow the
+// order requests arrived in. ok is false when too much is already pending;
+// behind is true when the new job is waiting for others in its channel.
+func startJob(key string, queue func() *channelTurn, run func() ingestResponse) (job *ingestJob, ok, behind bool) {
 	ingestJobsMu.Lock()
 	sweepIngestJobsLocked(time.Now())
-	if existing, found := ingestJobs[id]; found && !existing.retryableLocked() {
+	if existing, found := ingestJobs[key]; found && !existing.retryableLocked() {
 		ingestJobsMu.Unlock()
-		return existing, true
+		return existing, true, false
 	}
 	if ingestPending >= maxPendingIngest {
 		ingestJobsMu.Unlock()
-		return nil, false
+		return nil, false, false
 	}
 	job = &ingestJob{done: make(chan struct{})}
-	ingestJobs[id] = job
+	ingestJobs[key] = job
 	ingestPending++
-	// Queued now, while the request is in hand, so the channel's line follows
-	// the order requests arrived in rather than goroutine scheduling.
-	turn := queueTurn(in.msg.ChannelID)
+	var turn *channelTurn
+	if queue != nil {
+		turn = queue()
+		behind = turn.prev != nil
+	}
 	ingestJobsMu.Unlock()
 
 	// Counted in Busy(), so a supervised restart waits for it like it waits for
@@ -337,15 +390,19 @@ func startIngestJob(in inboundMessage, warnings []string) (job *ingestJob, ok bo
 			ingestJobsMu.Unlock()
 			close(job.done)
 		}()
-		defer turn.release()
+		if turn != nil {
+			defer turn.release()
+		}
+		id := strings.TrimPrefix(key, manualJobPrefix)
 		job.response = ingestResponse{MessageID: id, Status: string(statusFailed), Reason: reasonInternal}
 		defer recoverHandler("ingestAPI")
 
-		turn.wait()
-		job.response = responseFor(id, ingestInbound(in))
-		job.response.Warnings = warnings
+		if turn != nil {
+			turn.wait()
+		}
+		job.response = run()
 	}()
-	return job, true
+	return job, true, behind
 }
 
 func responseFor(messageID string, r ingestResult) ingestResponse {
@@ -371,49 +428,81 @@ func responseFor(messageID string, r ingestResult) ingestResponse {
 	return resp
 }
 
-// inbound validates the request and turns it into what the triggers take.
-// warnings are problems that don't stop the message.
-func (req ingestRequest) inbound() (in inboundMessage, warnings []string, err error) {
-	if len(req.Message) == 0 {
-		return in, nil, fmt.Errorf("`message` is required: the Discord message object as delivered")
+// forwardedMessage decodes and checks a forwarded message object: present,
+// a server message, and within Discord's own limits.
+func forwardedMessage(raw json.RawMessage) (discord.Message, error) {
+	if len(raw) == 0 {
+		return discord.Message{}, fmt.Errorf("`message` is required: the Discord message object as delivered")
 	}
-	msg, err := parseDiscordMessage(req.Message)
+	msg, err := parseDiscordMessage(raw)
 	if err != nil {
-		return in, nil, err
+		return msg, err
 	}
 	switch {
 	case msg.ID == 0:
-		return in, nil, fmt.Errorf("`message.id` is required")
+		return msg, fmt.Errorf("`message.id` is required")
 	case msg.ChannelID == 0:
-		return in, nil, fmt.Errorf("`message.channel_id` is required")
+		return msg, fmt.Errorf("`message.channel_id` is required")
 	case msg.GuildID == nil || *msg.GuildID == 0:
-		return in, nil, fmt.Errorf("`message.guild_id` is required: only server messages are ingested (a message fetched over REST lacks it; add it)")
+		return msg, fmt.Errorf("`message.guild_id` is required: only server messages are ingested (a message fetched over REST, or one from an interaction's resolved data, lacks it; add it)")
 	case msg.Author.ID == 0:
-		return in, nil, fmt.Errorf("`message.author` is required")
+		return msg, fmt.Errorf("`message.author` is required")
 	case len(msg.Attachments) > maxMessageAttachments:
-		return in, nil, fmt.Errorf("`message.attachments` has more than %d entries", maxMessageAttachments)
+		return msg, fmt.Errorf("`message.attachments` has more than %d entries", maxMessageAttachments)
 	case utf8.RuneCountInString(msg.Content) > maxMessageContent:
-		return in, nil, fmt.Errorf("`message.content` is longer than %d characters", maxMessageContent)
+		return msg, fmt.Errorf("`message.content` is longer than %d characters", maxMessageContent)
 	case len(msg.Embeds) > maxMessageEmbeds:
-		return in, nil, fmt.Errorf("`message.embeds` has more than %d entries", maxMessageEmbeds)
+		return msg, fmt.Errorf("`message.embeds` has more than %d entries", maxMessageEmbeds)
 	}
 	for _, a := range msg.Attachments {
 		u, perr := url.Parse(a.URL)
 		if perr != nil || u.Scheme != "https" || !discordAttachmentHosts[strings.ToLower(u.Hostname())] {
-			return in, nil, fmt.Errorf("attachment %q isn't on Discord's CDN", a.Filename)
+			return msg, fmt.Errorf("attachment %q isn't on Discord's CDN", a.Filename)
 		}
 	}
+	return msg, nil
+}
 
-	door, err := snowflake.Parse(strings.TrimSpace(req.BotUserID))
-	if err != nil || door == 0 {
-		return in, nil, fmt.Errorf("`bot_user_id` is required: your bot's user id")
+// forwarderID reads the required bot_user_id, which must be a configured
+// forwarding bot when INGEST_BOT_USER_IDS is set.
+func forwarderID(raw string) (snowflake.ID, error) {
+	id, err := snowflake.Parse(strings.TrimSpace(raw))
+	if err != nil || id == 0 {
+		return 0, fmt.Errorf("`bot_user_id` is required: your bot's user id")
+	}
+	if len(ingestBotIDs) > 0 && !ingestBotIDs[id] {
+		return 0, fmt.Errorf("`bot_user_id` %s isn't the bot goyangi has on file for this token", id)
+	}
+	return id, nil
+}
+
+// postedByForwarder reports whether the forwarding bot posted a message itself:
+// as its own user, as an interaction response or follow-up (application_id),
+// or through a webhook — anonymous-post features usually post through one, so
+// the post can carry a name of its own.
+func postedByForwarder(msg discord.Message, door snowflake.ID) bool {
+	return msg.Author.ID == door ||
+		(msg.ApplicationID != nil && *msg.ApplicationID == door) ||
+		msg.WebhookID != nil
+}
+
+// inbound validates the request and turns it into what the triggers take.
+// warnings are problems that don't stop the message.
+func (req ingestRequest) inbound() (in inboundMessage, warnings []string, err error) {
+	msg, err := forwardedMessage(req.Message)
+	if err != nil {
+		return in, nil, err
+	}
+	door, err := forwarderID(req.BotUserID)
+	if err != nil {
+		return in, nil, err
 	}
 
 	var relay *relayCredit
 	if r := req.Relay; r != nil {
 		switch {
-		case msg.Author.ID != door:
-			return in, nil, fmt.Errorf("`relay` is only for messages your bot posted (author.id must equal bot_user_id)")
+		case !postedByForwarder(msg, door):
+			return in, nil, fmt.Errorf("`relay` is only for messages your bot posted: as itself (author.id = bot_user_id), as an interaction response, or through a webhook")
 		case r.Anonymous && r.User != nil:
 			return in, nil, fmt.Errorf("`relay` is either anonymous or names a user, not both")
 		case r.Anonymous:

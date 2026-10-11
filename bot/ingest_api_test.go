@@ -118,8 +118,11 @@ func newIngestFixture(t *testing.T) *ingestFixture {
 	forwarders = map[snowflake.ID]bool{}
 	forwardersMu.Unlock()
 	ourBotID.Store(0)
-	realWait, realPending, realDraining := ingestWait, maxPendingIngest, isDraining
-	t.Cleanup(func() { ingestWait, maxPendingIngest, isDraining = realWait, realPending, realDraining })
+	realWait, realQueued, realPending, realDraining, realBots := ingestWait, queuedWait, maxPendingIngest, isDraining, ingestBotIDs
+	ingestBotIDs = map[snowflake.ID]bool{}
+	t.Cleanup(func() {
+		ingestWait, queuedWait, maxPendingIngest, isDraining, ingestBotIDs = realWait, realQueued, realPending, realDraining, realBots
+	})
 
 	channel, _ := snowflake.Parse(testChannel)
 	allowedChannelIDs[channel] = true
@@ -482,7 +485,7 @@ func TestIngestAPISkipsLikeTheBot(t *testing.T) {
 // the first message opened, even while that one is still downloading.
 func TestIngestAPIKeepsAChannelInOrder(t *testing.T) {
 	f := newIngestFixture(t)
-	ingestWait = 20 * time.Millisecond
+	ingestWait, queuedWait = 20*time.Millisecond, 20*time.Millisecond
 
 	ids := []string{"2000000000000000040", "2000000000000000041", "2000000000000000042"}
 	bodies := []string{
@@ -614,7 +617,7 @@ func TestIngestAPIBackPressure(t *testing.T) {
 	isDraining = func() bool { return false }
 
 	maxPendingIngest = 1
-	ingestWait = 20 * time.Millisecond
+	ingestWait, queuedWait = 20*time.Millisecond, 20*time.Millisecond
 	if code, _, raw := f.post(t, body(message{id: "2000000000000000091", mentionRoles: []string{testRole}, files: []string{"slow.png"}}, request{roles: yujin})); code != http.StatusAccepted {
 		t.Fatalf("first: %d — %s", code, raw)
 	}
@@ -700,5 +703,314 @@ func TestDiscordLinkIndex(t *testing.T) {
 	}
 	if len(plan) == 0 || !strings.Contains(plan[0].Detail, discordLinkIndexName) {
 		t.Errorf("the lookup doesn't use the index: %+v", plan)
+	}
+}
+
+// ─── Manual requests ("Ingest this message" from the other bot) ─────────────
+
+const (
+	testModID   = "1000000000000000111"
+	testModRole = "1000000000000000222"
+)
+
+// linkedUploader makes an uploader whose account may upload, as the manual
+// paths require of the person asking.
+func (f *ingestFixture) linkedUploader(t *testing.T, name string, canUpload bool) {
+	t.Helper()
+	users, _ := f.app.FindCollectionByNameOrId("users")
+	u := core.NewRecord(users)
+	u.Set("email", name+"@example.com")
+	u.SetPassword("password123456")
+	u.Set("canUpload", canUpload)
+	mustSaveRecord(t, f.app, u)
+	uploaders, _ := f.app.FindCollectionByNameOrId("uploaders")
+	up := core.NewRecord(uploaders)
+	up.Set("name", name)
+	up.Set("user", u.Id)
+	mustSaveRecord(t, f.app, up)
+}
+
+func manualBody(m message, requester string, roles []string, idols []string, extra map[string]any) string {
+	var msg map[string]any
+	_ = json.Unmarshal([]byte(body(m, request{})), &msg)
+	req := map[string]any{
+		"message":      msg["message"],
+		"bot_user_id":  testBotUser,
+		"requested_by": map[string]any{"id": testModID, "username": requester, "roles": roles},
+		"idols":        idols,
+	}
+	for k, v := range extra {
+		req[k] = v
+	}
+	out, _ := json.Marshal(req)
+	return string(out)
+}
+
+func (f *ingestFixture) manual(t *testing.T, b string) (int, ingestResponse, string) {
+	t.Helper()
+	return f.do(t, http.MethodPost, "/api/ingest/discord/manual", b, "Bearer "+testToken)
+}
+
+// withIngestRoles sets DISCORD_INGEST_ROLE_IDS for one test.
+func withIngestRoles(t *testing.T, ids ...string) {
+	t.Helper()
+	real := manualIngestRoleIDs
+	manualIngestRoleIDs = map[snowflake.ID]bool{}
+	for _, id := range ids {
+		manualIngestRoleIDs[snowflake.MustParse(id)] = true
+	}
+	t.Cleanup(func() { manualIngestRoleIDs = real })
+}
+
+func TestManualIngest(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	withIngestRoles(t, testModRole)
+
+	// Any channel, allowlisted or not: somebody named this message and asked.
+	const id = "2000000000000000300"
+	m := message{id: id, channel: "1000000000000000777", content: "no ping at all", files: []string{"a.png", "b.png"}}
+	code, resp, raw := f.manual(t, manualBody(m, "mod", []string{testModRole}, []string{"Yujin"}, map[string]any{"tags": []string{"fancam"}}))
+	expect(t, "manual", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if resp.Created != 2 || resp.Reply != "✅ Ingested 2 item(s)." || !strings.Contains(resp.Set, "/set/") {
+		t.Errorf("answer %+v", resp)
+	}
+	link := fmt.Sprintf("https://discord.com/channels/%s/%s/%s", testGuild, "1000000000000000777", id)
+	post, err := f.app.FindFirstRecordByFilter("contents", "discord = {:link}", dbx.Params{"link": link})
+	if err != nil {
+		t.Fatalf("no post: %v", err)
+	}
+	// The person who asked is credited, not the author.
+	if got := f.uploaderOf(t, post); got != "mod" {
+		t.Errorf("credited %q, want the requester (mod)", got)
+	}
+
+	// Asking again within the hour gets the same answer.
+	if code, again, raw := f.manual(t, manualBody(m, "mod", []string{testModRole}, []string{"Yujin"}, nil)); code != http.StatusOK || again.Status != string(statusIngested) {
+		t.Errorf("repeat: %d %+v — %s", code, again, raw)
+	}
+	// The GET has it too.
+	if code, got, raw := f.do(t, http.MethodGet, "/api/ingest/discord/manual/"+id, "", "Bearer "+testToken); code != http.StatusOK || got.Status != string(statusIngested) {
+		t.Errorf("status lookup: %d %+v — %s", code, got, raw)
+	}
+}
+
+func TestManualIngestGates(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	f.linkedUploader(t, "nopermission", false)
+	withIngestRoles(t, testModRole)
+	m := func(id string) message { return message{id: id, files: []string{"a.png"}} }
+
+	code, resp, raw := f.manual(t, manualBody(m("2000000000000000310"), "mod", nil, []string{"Yujin"}, nil))
+	expect(t, "without the role", code, resp, raw, http.StatusOK, string(statusDenied), reasonNoPermission, "")
+	code, resp, raw = f.manual(t, manualBody(m("2000000000000000311"), "stranger", []string{testModRole}, []string{"Yujin"}, nil))
+	expect(t, "not an uploader", code, resp, raw, http.StatusOK, string(statusDenied), reasonCannotUpload, "")
+	code, resp, raw = f.manual(t, manualBody(m("2000000000000000312"), "nopermission", []string{testModRole}, []string{"Yujin"}, nil))
+	expect(t, "account without upload permission", code, resp, raw, http.StatusOK, string(statusDenied), reasonCannotUpload, "")
+	code, resp, raw = f.manual(t, manualBody(m("2000000000000000313"), "mod", []string{testModRole}, []string{"Nobody"}, nil))
+	expect(t, "unknown idol", code, resp, raw, http.StatusOK, string(statusFailed), reasonUnknownIdols, "")
+	if resp.Reply != "❌ I don't know: Nobody." {
+		t.Errorf("reply %q", resp.Reply)
+	}
+	code, resp, raw = f.manual(t, manualBody(m("2000000000000000314"), "mod", []string{testModRole}, []string{"Yujin"},
+		map[string]any{"set": "https://goyangi.pics/set/does-not-exist"}))
+	expect(t, "unknown set", code, resp, raw, http.StatusOK, string(statusFailed), reasonBadSet, "")
+	if n := f.count(t, "contents"); n != 0 {
+		t.Errorf("%d posts created by refused requests", n)
+	}
+
+	// Request problems are 400s, not answers for the person.
+	without := func(key string) string {
+		var req map[string]any
+		_ = json.Unmarshal([]byte(manualBody(m("2000000000000000315"), "mod", nil, []string{"Yujin"}, nil)), &req)
+		delete(req, key)
+		b, _ := json.Marshal(req)
+		return string(b)
+	}
+	for key, want := range map[string]string{"requested_by": "requested_by", "bot_user_id": "bot_user_id", "message": "message"} {
+		code, _, raw := f.manual(t, without(key))
+		if code != http.StatusBadRequest || !strings.Contains(raw, want) {
+			t.Errorf("without %s: %d, want a 400 about it — %s", key, code, raw)
+		}
+	}
+}
+
+func TestManualIngestJoinsASet(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+
+	// A set made by a first request, then a second request adds to it.
+	code, first, raw := f.manual(t, manualBody(message{id: "2000000000000000320", files: []string{"a.png"}}, "mod", nil, []string{"Yujin"}, nil))
+	expect(t, "first", code, first, raw, http.StatusOK, string(statusIngested), "", "success")
+	code, second, raw := f.manual(t, manualBody(message{id: "2000000000000000321", files: []string{"b.png"}}, "mod", nil, []string{"Yujin"},
+		map[string]any{"set": first.Set}))
+	expect(t, "second, into the first's set", code, second, raw, http.StatusOK, string(statusIngested), "", "success")
+	if second.Set != first.Set || f.count(t, "contents_sets") != 1 {
+		t.Errorf("second went to %q, want %q (and one set in all)", second.Set, first.Set)
+	}
+}
+
+func TestManualIngestDryRun(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	code, resp, raw := f.manual(t, manualBody(message{id: "2000000000000000330", files: []string{"a.png"}}, "mod", nil, []string{"Yujin"},
+		map[string]any{"dry_run": true}))
+	if code != http.StatusOK || !resp.DryRun || resp.Status != string(statusIngested) || resp.Preview == nil ||
+		resp.Preview.Trigger != "manual" || resp.Preview.Uploader != "mod" || len(resp.Preview.Items) != 1 {
+		t.Fatalf("dry run: %d %+v — %s", code, resp, raw)
+	}
+	if n := f.count(t, "contents") + f.count(t, "contents_sets"); n != 0 || f.downloads.Load() != 0 {
+		t.Errorf("a dry run left %d records and made %d downloads", n, f.downloads.Load())
+	}
+}
+
+// An anonymous-post feature usually posts through a webhook; the forwarding
+// bot can still say whose post it is.
+func TestIngestAPIRelayThroughAWebhook(t *testing.T) {
+	f := newIngestFixture(t)
+	var req map[string]any
+	_ = json.Unmarshal([]byte(body(message{id: "2000000000000000340", author: "1000000000000000444", username: "Anonymous",
+		mentionRoles: []string{testRole}, files: []string{"a.png"}},
+		request{roles: yujin, relay: map[string]any{"user": map[string]any{"id": "1000000000000000055", "username": "hyein"}}})), &req)
+	req["message"].(map[string]any)["webhook_id"] = "1000000000000000444"
+	b, _ := json.Marshal(req)
+
+	code, resp, raw := f.post(t, string(b))
+	expect(t, "webhook relay", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if got := f.uploaderOf(t, f.postFor(t, "2000000000000000340")); got != "hyein" {
+		t.Errorf("credited %q, want hyein", got)
+	}
+}
+
+// A message already on the site isn't archived again on request.
+func TestManualIngestRefusesWhatIsAlreadyArchived(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	const id = "2000000000000000350"
+	code, resp, raw := f.post(t, body(message{id: id, mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
+	expect(t, "archived automatically", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+
+	code, resp, raw = f.manual(t, manualBody(message{id: id, files: []string{"a.png"}}, "mod", nil, []string{"Yujin"}, nil))
+	expect(t, "asked for afterwards", code, resp, raw, http.StatusOK, string(statusDuplicate), reasonAlreadyArchived, "")
+	if n := f.count(t, "contents"); n != 1 {
+		t.Errorf("%d posts, want 1", n)
+	}
+}
+
+// A message that mentions the bot without idol/group lines is still a
+// follow-up: a bot that does other things gets mentioned for those too.
+func TestMentionWithoutLinesCanBeAFollowUp(t *testing.T) {
+	f := newIngestFixture(t)
+	code, resp, raw := f.post(t, body(message{id: "2000000000000000400", mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
+	expect(t, "opener", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	code, resp, raw = f.post(t, body(message{id: "2000000000000000401", content: "<@" + testBotUser + "> /something else", files: []string{"b.png"}}, request{}))
+	expect(t, "follow-up mentioning the bot", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if f.postFor(t, "2000000000000000401").GetString("set") != f.postFor(t, "2000000000000000400").GetString("set") {
+		t.Error("the follow-up didn't join the opener's set")
+	}
+}
+
+// A follow-up whose items all fail hasn't joined anything, so it doesn't use
+// one of the three slots.
+func TestFailedFollowUpKeepsItsSlot(t *testing.T) {
+	f := newIngestFixture(t)
+	code, resp, raw := f.post(t, body(message{id: "2000000000000000410", mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
+	expect(t, "opener", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	code, resp, raw = f.post(t, body(message{id: "2000000000000000411", files: []string{"missing.png"}}, request{}))
+	expect(t, "failed follow-up", code, resp, raw, http.StatusOK, string(statusFailed), reasonNothingSaved, "")
+	for i, id := range []string{"2000000000000000412", "2000000000000000413", "2000000000000000414"} {
+		code, resp, raw = f.post(t, body(message{id: id, files: []string{fmt.Sprintf("f%d.png", i)}}, request{}))
+		expect(t, "follow-up "+id, code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	}
+}
+
+// During a shadow run goyangi's own bot usually got there first; the dry run
+// still shows what it would have done, so the two can be compared.
+func TestDryRunOfATakenMessageKeepsThePreview(t *testing.T) {
+	f := newIngestFixture(t)
+	m := message{id: "2000000000000000420", content: "filetype: video", mentionRoles: []string{testRole}, files: []string{"a.png", "b.png"}}
+	code, resp, raw := f.post(t, body(m, request{roles: yujin}))
+	expect(t, "taken for real", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+
+	code, resp, raw = f.post(t, body(m, request{roles: yujin, dryRun: true}))
+	if code != http.StatusOK || resp.Status != string(statusDuplicate) || resp.Preview == nil || resp.Total != 2 {
+		t.Fatalf("dry run of a taken message: %d %+v — %s", code, resp, raw)
+	}
+	if resp.Preview.Title != "Yujin - IVE" || resp.Preview.Items[0].Filetype != "video" {
+		t.Errorf("preview %+v, want the real title and the filetype line applied", resp.Preview)
+	}
+}
+
+func TestDryRunDoesntRegisterTheBot(t *testing.T) {
+	f := newIngestFixture(t)
+	f.post(t, body(message{id: "2000000000000000430", files: []string{"a.png"}}, request{dryRun: true}))
+	forwardersMu.Lock()
+	known := forwarders[snowflake.MustParse(testBotUser)]
+	forwardersMu.Unlock()
+	if known {
+		t.Error("a dry run made goyangi treat the bot as one of its own")
+	}
+}
+
+func TestPinnedForwardingBots(t *testing.T) {
+	f := newIngestFixture(t)
+	ingestBotIDs = map[snowflake.ID]bool{snowflake.MustParse(testBotUser): true}
+	code, _, raw := f.post(t, body(message{id: "2000000000000000440", files: []string{"a.png"}}, request{botID: testAuthor}))
+	if code != http.StatusBadRequest || !strings.Contains(raw, "bot_user_id") {
+		t.Errorf("an unlisted bot_user_id: %d, want a 400 — %s", code, raw)
+	}
+	if code, _, raw := f.post(t, body(message{id: "2000000000000000441", files: []string{"a.png"}}, request{})); code != http.StatusOK {
+		t.Errorf("the listed bot: %d — %s", code, raw)
+	}
+}
+
+// A message queued behind a slow one in its channel answers 202 quickly, so a
+// client sending a channel's messages one at a time isn't held 25 s for each.
+func TestQueuedMessageAnswersQuickly(t *testing.T) {
+	f := newIngestFixture(t)
+	ingestWait, queuedWait = 5*time.Second, 50*time.Millisecond
+
+	go f.post(t, body(message{id: "2000000000000000450", mentionRoles: []string{testRole}, files: []string{"slow.png"}}, request{roles: yujin}))
+	for deadline := time.Now().Add(2 * time.Second); ; {
+		ingestJobsMu.Lock()
+		n := ingestPending
+		ingestJobsMu.Unlock()
+		if n > 0 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	start := time.Now()
+	code, resp, raw := f.post(t, body(message{id: "2000000000000000451", files: []string{"b.png"}}, request{}))
+	if code != http.StatusAccepted || resp.Status != "processing" || time.Since(start) > time.Second {
+		t.Errorf("queued message: %d %q after %v, want a quick 202 — %s", code, resp.Status, time.Since(start), raw)
+	}
+	f.unblock()
+	if v := f.await(t, "2000000000000000451"); v.Status != string(statusIngested) {
+		t.Errorf("queued message's verdict: %+v", v)
+	}
+}
+
+// Dry runs make no network calls: imgur albums are listed, not looked up.
+func TestDryRunsDontLookUpAlbums(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	var lookups atomic.Int64
+	real := resolveImgurAlbum
+	resolveImgurAlbum = func(string) []MediaItem { lookups.Add(1); return nil }
+	t.Cleanup(func() { resolveImgurAlbum = real })
+
+	album := "https://imgur.com/a/AbCdE12"
+	code, resp, raw := f.post(t, body(message{id: "2000000000000000460", content: album, mentionRoles: []string{testRole}}, request{roles: yujin, dryRun: true}))
+	if code != http.StatusOK || resp.Preview == nil || len(resp.Preview.Items) != 1 || resp.Preview.Items[0].Filetype != "album" {
+		t.Errorf("forwarded dry run: %d %+v — %s", code, resp, raw)
+	}
+	code, resp, raw = f.manual(t, manualBody(message{id: "2000000000000000461", content: album}, "mod", nil, []string{"Yujin"}, map[string]any{"dry_run": true}))
+	if code != http.StatusOK || resp.Preview == nil || len(resp.Preview.Items) != 1 || resp.Preview.Items[0].Filetype != "album" {
+		t.Errorf("manual dry run: %d %+v — %s", code, resp, raw)
+	}
+	if n := lookups.Load(); n != 0 {
+		t.Errorf("%d album lookups in dry runs, want none", n)
 	}
 }

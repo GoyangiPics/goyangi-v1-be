@@ -193,3 +193,14 @@ func TestChainWindowUsesPostingTime(t *testing.T) {
 		t.Error("the window should run from the last message that joined")
 	}
 }
+
+// A reply can join a set for an hour, not for as long as the entry happens to
+// survive between sweeps.
+func TestLookupSetHonoursTheHour(t *testing.T) {
+	setRegistryMu.Lock()
+	setRegistry = map[string]setEntry{"m1": {meta: Metadata{SetId: "s1"}, createdAt: time.Now().Add(-stateTTL - time.Minute)}}
+	setRegistryMu.Unlock()
+	if _, ok := lookupSet("m1"); ok {
+		t.Error("a set remembered over an hour ago is still offered")
+	}
+}
