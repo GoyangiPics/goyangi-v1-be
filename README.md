@@ -410,6 +410,42 @@ named `Idol [Group]` (falling back to a bare `Idol` role) plus one per group;
 names with no matching role are skipped. Items ingested *from* Discord are not
 announced — they were already posted by hand in the channel they came from.
 
+## Ingest API (another bot forwards messages)
+
+goyangi doesn't need its own bot in a server it archives. A bot that already
+reads those channels can forward each message to `POST
+/api/ingest/discord/messages`, and the message goes through exactly the passive
+triggers above: the allowlist, role pings, @-mentions (of *that* bot), replies,
+chains, text detection, album resolution, relay credits, uploader matching,
+opt-outs and blocks. The forwarding bot decides nothing. The contract for
+whoever writes it is [docs/ingest-api.md](docs/ingest-api.md).
+
+- `INGEST_API_TOKEN` turns the routes on, and is the bearer token the other bot
+  sends. Comma-separate two to rotate without downtime. Unset means the routes
+  don't exist.
+- `DISCORD_BOT_ENABLED=false` runs the backend without its own bot. Unset means
+  enabled. The two are independent, so both can run at once: a message both
+  sides see is ingested once, and our bot's own posts are never ingested even
+  when the other bot forwards them.
+- `DISCORD_ALLOWED_CHANNEL_IDS` must list the forwarded channels, the same as it
+  would for our own bot.
+
+What stays with our own bot, and is unavailable while it's off: the slash
+commands, **Ingest this message**, `/reupload`, the AVIF-ready notices and the
+upload announcements.
+
+Switching over, reversibly:
+
+1. Set `INGEST_API_TOKEN`, add the other server's channels to
+   `DISCORD_ALLOWED_CHANNEL_IDS`, deploy, and give the token to the other bot's
+   developer.
+2. Let both run while the other bot starts forwarding. Nothing doubles.
+3. Remove our bot from that server, or set `DISCORD_BOT_ENABLED=false` if it
+   has nowhere else to be.
+
+To go back, undo step 3. Our bot takes new messages from then on; anything
+posted while neither side was listening isn't caught up.
+
 ## Backfilling posts from before the bot
 
 [scripts/backfilldiscord](scripts/backfilldiscord/main.go) archives the posts
