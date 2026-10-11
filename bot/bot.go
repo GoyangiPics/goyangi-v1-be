@@ -21,6 +21,44 @@ var App core.App
 // gateway bot runs: the ingest API creates records through the same helpers.
 func Init(app core.App) {
 	App = app
+	// Known even when the bot doesn't connect, so a mention of it still reads
+	// as a mention of goyangi (see isGoyangiBot).
+	if id := botIDFromToken(os.Getenv("DISCORD_TOKEN")); id != 0 {
+		ourBotID.Store(uint64(id))
+	}
+	app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
+		if err := e.Next(); err != nil {
+			return err
+		}
+		if err := ensureDiscordLinkIndex(e.App); err != nil {
+			slog.Warn("could not ensure the contents.discord index", "err", err)
+		}
+		return nil
+	})
+}
+
+// discordLinkIndex makes "is this message already in the archive?" a lookup
+// rather than a scan of every post: alreadyIngested asks it for every message
+// a trigger fires on, through either door.
+const (
+	discordLinkIndexName = "idx_contents_discord"
+	discordLinkIndex     = "CREATE INDEX `" + discordLinkIndexName + "` ON `contents` (`discord`)"
+)
+
+// ensureDiscordLinkIndex adds the index if no index of that name exists.
+// Idempotent; the same approach as hooks/uploader_stats.go.
+func ensureDiscordLinkIndex(app core.App) error {
+	collection, err := app.FindCollectionByNameOrId("contents")
+	if err != nil {
+		return err
+	}
+	for _, idx := range collection.Indexes {
+		if strings.Contains(idx, "`"+discordLinkIndexName+"`") {
+			return nil
+		}
+	}
+	collection.Indexes = append(collection.Indexes, discordLinkIndex)
+	return app.Save(collection)
 }
 
 // Enabled reports whether this process should connect its own Discord bot.
@@ -86,6 +124,7 @@ func Start() error {
 	}
 
 	Client = client
+	ourBotID.Store(uint64(client.ApplicationID))
 
 	if err := client.OpenGateway(context.Background()); err != nil {
 		return fmt.Errorf("open discord gateway: %w", err)

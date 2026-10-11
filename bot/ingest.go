@@ -1,10 +1,14 @@
 package bot
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 	"unicode"
 
 	"goyangi-v1-be/hooks"
@@ -40,25 +44,49 @@ import (
 // public storage, exactly like an upload from the web UI.
 
 // inboundMessage is one Discord message offered to the passive triggers (1–3),
-// from whichever side saw it: this process's own gateway connection
+// from whichever door it came through: this process's own gateway connection
 // (onMessageCreate) or another bot forwarding it over the ingest API
 // (ingest_api.go). Everything the triggers need beyond the message itself is
 // here, so the decisions below run identically either way.
 type inboundMessage struct {
 	msg     discord.Message
 	guildID snowflake.ID
-	// selfID is the bot people @-mention to ask for ingestion: ours on the
-	// gateway, the forwarding bot over the API. Its own messages are never
-	// ingested. Zero turns the @-mention trigger off.
-	selfID snowflake.ID
-	// roleNames resolves pinged role ids to role names ("Idol [Group]").
+	// door is the bot that delivered the message: ours on the gateway, the
+	// forwarding bot over the API.
+	door snowflake.ID
+	// relay says whose post this is, when the forwarding bot posted it on
+	// someone's behalf. Only the ingest API sets it.
+	relay *relayCredit
+	// roleNames resolves pinged role ids to role names ("Idol [Group]"),
+	// leaving out any it can't name.
 	roleNames func(ids []snowflake.ID) ([]string, error)
+	// dryRun decides everything and changes nothing: no claim, no records, no
+	// chain bookkeeping, no system_logs entries.
+	dryRun bool
+
+	// poster is who the message is credited to. Worked out by ingestInbound
+	// before the triggers run, because follow-ups and replies match on it.
+	poster poster
+}
+
+// relayCredit is the forwarding bot's word on whose post one of its own
+// messages is: a person, or nobody it may name.
+type relayCredit struct {
+	anonymous bool
+	userID    string
+	username  string
 }
 
 // jumpLink is the message's discord.com link, which is also what records store
 // in `contents.discord` and what log entries carry as their context handle.
 func (in inboundMessage) jumpLink() string {
 	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", in.guildID, in.msg.ChannelID, in.msg.ID)
+}
+
+// postedAt is when the message was posted, read from its id: Discord's clock,
+// not ours.
+func (in inboundMessage) postedAt() time.Time {
+	return in.msg.ID.Time()
 }
 
 // ingestStatus is what happened to an inbound message, in the words the ingest
@@ -68,22 +96,42 @@ type ingestStatus string
 const (
 	// Not for us: outside the allowlist, no trigger, or no media.
 	statusIgnored ingestStatus = "ignored"
-	// Already handled: a redelivery, a retry, or the other side got there first.
+	// Already handled: a redelivery, a retry, or the other door got there first.
 	statusDuplicate ingestStatus = "duplicate"
 	// Deliberately not ingested — marked ⏭️ so the poster knows it was a choice.
 	statusSkipped ingestStatus = "skipped"
 	// At least one item became a post.
 	statusIngested ingestStatus = "ingested"
-	// Attempted, and nothing came of it. The detail is in system_logs.
+	// Attempted, and nothing was saved. The detail is in system_logs.
 	statusFailed ingestStatus = "failed"
+)
+
+// Why, as stable codes. The ingest API hands them to another developer's bot,
+// which may branch on them, so they never change meaning and never carry
+// internal error text — that stays in system_logs.
+const (
+	reasonSystemMessage    = "system_message"
+	reasonOwnMessage       = "own_message"
+	reasonChannelNotListed = "channel_not_listed"
+	reasonNoMedia          = "no_media"
+	reasonNoTrigger        = "no_trigger"
+	reasonAlreadyHandled   = "already_handled"
+	reasonAlreadyArchived  = "already_archived"
+	reasonReannouncement   = "reannouncement"
+	reasonBlocked          = "blocked"
+	reasonOptedOut         = "opted_out"
+	reasonUnresolved       = "unresolved_names"
+	reasonNothingSaved     = "nothing_saved"
+	reasonInternal         = "internal_error"
 )
 
 // ingestResult is the verdict on one inbound message.
 type ingestResult struct {
 	status  ingestStatus
-	reason  string // why, for ignored, duplicate and skipped
+	reason  string // a reason code, when there is one
 	outcome ingestOutcome
-	setID   string // the set the items went into, when any were created
+	setID   string         // the set the items went into, when any were created
+	preview *ingestPreview // what would happen; dry runs only
 }
 
 // reaction is the marker for the triggering message, or "" for none. See
@@ -107,11 +155,16 @@ func onMessageCreate(e *events.MessageCreate) {
 	if e.GuildID == nil {
 		return
 	}
+	// Behind anything the ingest API is still doing in this channel.
+	turn := queueTurn(e.ChannelID)
+	turn.wait()
+	defer turn.release()
+
 	client, guildID := e.Client(), *e.GuildID
 	result := ingestInbound(inboundMessage{
 		msg:     e.Message,
 		guildID: guildID,
-		selfID:  client.ApplicationID,
+		door:    client.ApplicationID,
 		roleNames: func(ids []snowflake.ID) ([]string, error) {
 			return getRoleNamesFromIDs(client, guildID, ids)
 		},
@@ -119,88 +172,229 @@ func onMessageCreate(e *events.MessageCreate) {
 	reactTo(client, e.ChannelID, e.MessageID, result.reaction())
 }
 
-// isOurBot reports whether id is this process's own Discord bot, when it runs.
-func isOurBot(id snowflake.ID) bool {
-	return Client != nil && id == Client.ApplicationID
+// ─── Which bots stand for goyangi ────────────────────────────────────────────
+//
+// Two bots can stand for goyangi in a channel: ours, and a bot forwarding
+// messages over the ingest API. People @-mention either one to ask for
+// ingestion, "role ping + @-mention" means "already on the site" whichever one
+// they name, and neither one's own posts are content. So both doors recognise
+// both bots. With each door knowing only its own, a re-announcement that one
+// door skipped was ingested by the other.
+
+// ourBotID is this process's own bot. Set at Init from DISCORD_TOKEN — a bot
+// token's first segment is the bot's user id — so a mention of it still counts
+// while it is disabled but still in a server, and on Start from the client.
+var ourBotID atomic.Uint64
+
+var (
+	forwardersMu sync.Mutex
+	// forwarders are the bots that have forwarded messages over the ingest API.
+	forwarders = map[snowflake.ID]bool{}
+)
+
+func rememberForwarder(id snowflake.ID) {
+	forwardersMu.Lock()
+	defer forwardersMu.Unlock()
+	forwarders[id] = true
+}
+
+// isGoyangiBot reports whether id is one of the bots that stand for goyangi.
+func (in inboundMessage) isGoyangiBot(id snowflake.ID) bool {
+	if id == 0 {
+		return false
+	}
+	if id == in.door || id == snowflake.ID(ourBotID.Load()) {
+		return true
+	}
+	forwardersMu.Lock()
+	defer forwardersMu.Unlock()
+	return forwarders[id]
+}
+
+// userMentionRegexp matches a user mention as it appears in message text.
+var userMentionRegexp = regexp.MustCompile(`<@!?(\d+)>`)
+
+// mentionsGoyangiBot reports whether the text @-mentions one of goyangi's bots.
+// Deliberately content-based: a reply that pings a bot's message fills the
+// mentions array but not the content, and must NOT count as a mention.
+func (in inboundMessage) mentionsGoyangiBot() bool {
+	for _, m := range userMentionRegexp.FindAllStringSubmatch(in.msg.Content, -1) {
+		if id, err := snowflake.Parse(m[1]); err == nil && in.isGoyangiBot(id) {
+			return true
+		}
+	}
+	return false
+}
+
+// botIDFromToken reads the bot's user id out of a bot token, whose first
+// segment is that id in base64. Zero when the token isn't shaped like one.
+func botIDFromToken(token string) snowflake.ID {
+	first, _, _ := strings.Cut(strings.TrimSpace(token), ".")
+	for _, enc := range []*base64.Encoding{base64.RawStdEncoding, base64.StdEncoding, base64.RawURLEncoding, base64.URLEncoding} {
+		if raw, err := enc.DecodeString(first); err == nil {
+			if id, err := snowflake.Parse(string(raw)); err == nil {
+				return id
+			}
+		}
+	}
+	return 0
+}
+
+// ─── Who a message is credited to ────────────────────────────────────────────
+
+// poster is who a message is credited to, and the key that ties it to the same
+// person's other messages: follow-ups, replies and repeat pings.
+type poster struct {
+	name   string // the uploader to credit, unless an `uploader:` line names one
+	source string // which signal decided it, for the log
+	// key is the person's Discord user id when it is known, the credited name
+	// when only a relay's "Posted by:" line says who it was, and EMPTY when the
+	// post can't be tied to a person — a relay app's post that names nobody, or
+	// one its poster asked to keep anonymous. An empty key never opens or joins
+	// a set across messages: two anonymous posts through the same app are not
+	// one person's drop, and filing them together would put one person's post
+	// under somebody else's name.
+	key     string
+	relayed bool // posted by an app or webhook on someone's behalf
+}
+
+// creditFor decides who a message is credited to. See creditFromMessage for the
+// signals Discord gives and creditFromPostedBy for a relay's own credit line.
+func creditFor(in inboundMessage) poster {
+	msg := in.msg
+	if r := in.relay; r != nil {
+		if r.anonymous {
+			return poster{name: msg.Author.Username, source: "relay-anonymous", relayed: true}
+		}
+		return poster{name: r.username, source: "relay", key: r.userID, relayed: true}
+	}
+
+	name, source, userID := creditFromMessage(msg)
+	p := poster{name: name, source: source, key: userID, relayed: msg.Author.Bot || msg.WebhookID != nil}
+	if p.relayed && source == "author" {
+		// Discord names only the app. Its own "Posted by:" line is the next best
+		// thing; without one the post stays the app's, tied to nobody.
+		p.key = ""
+		if credited, ok := creditFromPostedBy(msg); ok {
+			p.name, p.source, p.key = credited, "posted-by", "posted-by:"+strings.ToLower(credited)
+		}
+	}
+	return p
 }
 
 // ingestInbound runs the passive triggers (1–3) on one message, wherever it
-// came from, and reports what happened. The caller owns any feedback in Discord.
+// came from, and reports what happened. The caller owns any feedback in
+// Discord, and holds the channel's turn (queueTurn) unless this is a dry run.
 func ingestInbound(in inboundMessage) ingestResult {
 	msg := in.msg
 
 	// Other bots and webhook apps are legitimate posters — people routinely use
-	// them to post content into the scraping channels. Only skip the ingesting
-	// bot itself (our own AVIF-ready notices carry cdn links and would be
-	// re-ingested in a loop) and Discord's own system messages (joins, pins,
-	// boosts).
-	//
-	// Our own bot is checked separately from selfID: when another bot forwards
-	// a channel ours also posts in, selfID is theirs, and our notices still
-	// mustn't come back as content.
-	if (in.selfID != 0 && msg.Author.ID == in.selfID) || isOurBot(msg.Author.ID) || msg.Author.System {
-		return ingestResult{status: statusIgnored, reason: "own or system message"}
+	// them to post content into the scraping channels. Only Discord's own system
+	// messages are not, and goyangi's own bots: our AVIF-ready notices carry cdn
+	// links and would be re-ingested in a loop. The exception is a post the
+	// forwarding bot made on someone's behalf and says so (`relay`).
+	if msg.Author.System {
+		return ingestResult{status: statusIgnored, reason: reasonSystemMessage}
+	}
+	if in.relay == nil && in.isGoyangiBot(msg.Author.ID) {
+		return ingestResult{status: statusIgnored, reason: reasonOwnMessage}
+	}
+	// Confined to the allowed channels, whatever the trigger: goyangi must not
+	// re-upload media from anywhere else.
+	if !allowedChannelIDs[msg.ChannelID] {
+		return ingestResult{status: statusIgnored, reason: reasonChannelNotListed}
 	}
 
+	in.poster = creditFor(in)
 	plan := prepareIngestion(in)
-	if plan.skipped != "" {
+	switch {
+	case plan.skipped != "":
 		return ingestResult{status: statusSkipped, reason: plan.skipped}
+	case !plan.ok:
+		return ingestResult{status: statusIgnored, reason: plan.ignored}
 	}
-	if !plan.ok {
-		return ingestResult{status: statusIgnored, reason: "no trigger or no media"}
+
+	// An explicit `uploader:` line wins; a reply or follow-up keeps the credit
+	// of the set it joins, which is the same person by construction.
+	if plan.metadata.Uploader == "" {
+		plan.metadata.Uploader = in.poster.name
+	}
+	stampMessage(&plan.metadata, msg, in.guildID)
+	plan.metadata.AuthorID = in.poster.key
+
+	if in.dryRun {
+		return dryRunVerdict(in, plan)
 	}
 
 	// Skip redeliveries of an already-handled message. Claim before any side
-	// effect (replies, records) so a redelivery can't double them.
+	// effect (records, chain bookkeeping) so a redelivery can't double them.
 	if !claimMessage(msg.ID.String()) {
 		slog.Info("skipping duplicate message event", "id", msg.ID)
-		return ingestResult{status: statusDuplicate, reason: "already handled"}
+		return ingestResult{status: statusDuplicate, reason: reasonAlreadyHandled}
 	}
 	// The claim is in memory; the archive itself covers a retry after a
 	// restart, and a message the other door took before a switch-over.
 	if alreadyIngested(in.jumpLink()) {
-		return ingestResult{status: statusDuplicate, reason: "already in the archive"}
+		slog.Info("ingest: already in the archive", "discord", in.jumpLink())
+		return ingestResult{status: statusDuplicate, reason: reasonAlreadyArchived}
 	}
 
-	channelID, authorID := msg.ChannelID.String(), msg.Author.ID.String()
+	channelID := msg.ChannelID.String()
 
 	// Spent here rather than in peekChain, so a redelivery that never gets past
 	// the claim above can't burn a follow-up slot.
 	if plan.viaChain {
-		consumeChain(channelID, authorID)
+		consumeChain(channelID, in.poster.key, in.postedAt())
 		// No author id in the line: stdout lands in the host journal with
 		// unbounded retention, and the set's own discord link identifies the
 		// message if one ever needs reviewing.
-		slog.Info("ingest: joining the author's open chain",
+		slog.Info("ingest: joining the poster's open chain",
 			"channel", channelID, "set", plan.metadata.SetId)
 	}
-
-	fillMessageDefaults(&plan.metadata, msg, in.guildID)
+	// Logged only for relayed posts, which are the ones that pile into one
+	// bucket — and this line is how we find out whether a given relay app
+	// leaves the person recoverable at all, from real traffic rather than by
+	// reading its source. stdout, not system_logs: nothing has gone wrong.
+	if in.poster.relayed {
+		slog.Info("ingest: crediting a relayed post",
+			"uploader", plan.metadata.Uploader,
+			"source", in.poster.source,
+			"app", msg.Author.Username,
+			"webhook", msg.WebhookID != nil,
+		)
+	}
 
 	outcome := runIngestion(plan.metadata, plan.items, plan.joinsSet, true)
 	logOutcome(outcome, in.jumpLink())
 
-	result := ingestResult{status: statusFailed, outcome: outcome}
+	result := ingestResult{status: statusFailed, reason: reasonNothingSaved, outcome: outcome}
 	switch {
 	case outcome.skipped != "":
-		result.status, result.reason = statusSkipped, outcome.skipped
-	case outcome.fatal == "" && outcome.created > 0:
-		result.status = statusIngested
+		result.status, result.reason = statusSkipped, outcome.skipCode
+	case outcome.fatal != "":
+		result.reason = outcome.fatalCode
+	case outcome.created > 0:
+		result.status, result.reason = statusIngested, ""
 	}
 
-	// A fresh set opens a chain for its author, so the bare messages that follow
-	// join it. runIngestion took metadata by value and stamped the new set id on
-	// its own copy, so the registry it wrote is where that copy can be read back.
-	if plan.joinsSet {
+	switch {
+	case outcome.created == 0:
+		// Nothing was saved, so nothing makes a second attempt a duplicate: a
+		// retry through the ingest API gets a real one.
+		releaseClaim(msg.ID.String())
+	case plan.joinsSet:
 		result.setID = plan.metadata.SetId
-	} else if setMeta, found := lookupSet(msg.ID.String()); found {
-		result.setID = setMeta.SetId
-		if outcome.created > 0 {
-			openChain(channelID, authorID, setMeta)
+	default:
+		// A fresh set opens a chain for its poster, so the bare messages that
+		// follow join it. runIngestion took metadata by value and stamped the
+		// new set id on its own copy, so the registry it wrote is where that
+		// copy can be read back.
+		if setMeta, found := lookupSet(msg.ID.String()); found {
+			result.setID = setMeta.SetId
+			if in.poster.key != "" {
+				openChain(channelID, in.poster.key, setMeta, in.postedAt())
+			}
 		}
-	}
-	if outcome.created == 0 {
-		result.setID = ""
 	}
 	return result
 }
@@ -421,28 +615,27 @@ type ingestPlan struct {
 	joinsSet bool
 	viaChain bool
 	ok       bool
-	// skipped is set when the message is deliberately NOT ingested and the
-	// poster should see ⏭️ for it, rather than silence.
+	// trigger names the rule that fired: role_ping, repeat_ping, mention,
+	// reply, follow_up or text. Reported by dry runs.
+	trigger string
+	// ignored is the reason code when !ok.
+	ignored string
+	// skipped is set (to a reason code) when the message is deliberately NOT
+	// ingested and the poster should see ⏭️ for it, rather than silence.
 	skipped string
 }
 
 // prepareIngestion decides whether the message should be ingested and, if so,
-// assembles its metadata and media items. `ok` is false when the message isn't
-// for us (no trigger, no media, or a metadata error already logged).
+// assembles its metadata and media items. The allowlist and the poster are
+// already settled (ingestInbound).
 func prepareIngestion(in inboundMessage) ingestPlan {
-	none := ingestPlan{}
 	msg := in.msg
+	mentioned := in.mentionsGoyangiBot()
 
-	// Ingestion is confined to the allowed channels, whatever the trigger —
-	// the bot must not re-upload media from anywhere else.
-	if !allowedChannelIDs[msg.ChannelID] {
-		return none
-	}
-
-	// A message carrying BOTH a role ping and an @-mention of the bot is someone
-	// re-announcing content that is already in the library: the pings are for
-	// people, and ingesting again would duplicate the records. Checked before the
-	// switch below, which would otherwise take the @-mention branch and ingest.
+	// A message carrying BOTH a role ping and an @-mention of goyangi's bot is
+	// someone re-announcing content that is already in the library: the pings
+	// are for people, and ingesting again would duplicate the records. Checked
+	// before everything else, media included — the ⏭️ is the answer either way.
 	//
 	// An @-mention alone still ingests (with `key: value` metadata) and a role
 	// ping alone still ingests passively — only the combination is a skip. The
@@ -452,44 +645,36 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 	//
 	// Returns before claimMessage, so a redelivery reports the skip again —
 	// re-reacting is idempotent, so no dedupe is needed.
-	if botIsMentioned(in) && len(msg.MentionRoles) > 0 {
-		return ingestPlan{skipped: "role ping and @-mention together: a re-announcement of something already posted"}
+	if mentioned && len(msg.MentionRoles) > 0 {
+		return ingestPlan{skipped: reasonReannouncement}
 	}
+
+	items := collectMedia(msg)
+	if len(items) == 0 {
+		return ingestPlan{ignored: reasonNoMedia}
+	}
+	channelID, key, at := msg.ChannelID.String(), in.poster.key, in.postedAt()
 
 	switch {
 	// Explicit @-mention.
-	case botIsMentioned(in):
-		items := collectMedia(msg)
-		if len(items) == 0 {
-			return none
-		}
+	case mentioned:
 		metadata := Metadata{}
 		if err := extractMetadata(msg.Content, &metadata); err != nil {
-			// No reaction: same reasoning as ingestOutcome.emoji — a failure
-			// marker on someone's post reads as a scolding. The trade is that a
-			// malformed @-mention is now silent in-channel, so system_logs is
-			// the only place it surfaces. The jump link is enough to review the
-			// message; its full text is deliberately NOT stored — logs keep
-			// derived data only, never verbatim user speech (retention promise
-			// in the privacy policy).
-			hooks.LogBotError("metadata parse failed: "+err.Error(), map[string]any{
-				"discord": in.jumpLink(),
-			})
-			return none
+			// No `idol:` and `group:` lines. The text may still name an idol, so
+			// it gets the chance it would have had without the mention: a bot
+			// that does other things too gets mentioned for those as well, and
+			// a mention mustn't make a message worse off than no mention.
+			slog.Info("@-mention without idol/group lines, trying the text", "discord", in.jumpLink())
+			return textDetection(in, items, nil)
 		}
-		return ingestPlan{metadata: metadata, items: items, ok: true}
+		return ingestPlan{metadata: metadata, items: items, ok: true, trigger: "mention"}
 
 	// Role ping: passive ingestion.
 	case len(msg.MentionRoles) > 0:
-		items := collectMedia(msg)
-		if len(items) == 0 {
-			return none
-		}
-
 		pingRoleNames, err := in.roleNames(msg.MentionRoles)
 		if err != nil {
 			slog.Error("unable to resolve role names", "err", err)
-			return none
+			return ingestPlan{ignored: reasonNoTrigger}
 		}
 
 		metadata := rolesToMetadata(pingRoleNames)
@@ -512,27 +697,48 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 		// about the same subject joins the set the first one opened. It spends a
 		// follow-up slot like any other continuation, so the same 3-message
 		// budget applies.
-		if open, ok := peekChain(msg.ChannelID.String(), msg.Author.ID.String()); ok && sameSubject(open, metadata) {
-			return ingestPlan{metadata: open, items: items, joinsSet: true, viaChain: true, ok: true}
-		}
-		return ingestPlan{metadata: metadata, items: items, ok: true}
-
-	// Reply to a message that created a set: append to that set.
-	case msg.ReferencedMessage != nil:
-		remembered, found := lookupSet(msg.ReferencedMessage.ID.String())
-		if found && remembered.AuthorID == msg.Author.ID.String() {
-			items := collectMedia(msg)
-			if len(items) == 0 {
-				return none
+		if key != "" {
+			if open, ok := peekChain(channelID, key, at); ok && sameSubject(open, metadata) {
+				return ingestPlan{metadata: open, items: items, joinsSet: true, viaChain: true, ok: true, trigger: "repeat_ping"}
 			}
-			return ingestPlan{metadata: remembered, items: items, joinsSet: true, ok: true}
+		}
+		return ingestPlan{metadata: metadata, items: items, ok: true, trigger: "role_ping"}
+
+	// Reply, by the same person, to a message that created a set: append to it.
+	case repliedTo(msg) != 0 && key != "":
+		if remembered, found := lookupSet(repliedTo(msg).String()); found && remembered.AuthorID == key {
+			return ingestPlan{metadata: remembered, items: items, joinsSet: true, ok: true, trigger: "reply"}
 		}
 		// A reply to something else entirely can still be a plain follow-up in a
 		// drop — people reply to their own earlier message just for threading —
 		// so this falls through to the chain check rather than returning.
 	}
 
-	return chainContinuation(in)
+	// A bare follow-up: no trigger of its own (anything with one was handled
+	// above), posted by the same person, in the same channel, shortly after a
+	// message that opened a set. The loosest rule in the file and the only one
+	// that infers intent — see state.go for the trade it makes.
+	if key != "" {
+		if meta, ok := peekChain(channelID, key, at); ok {
+			return ingestPlan{metadata: meta, items: items, joinsSet: true, viaChain: true, ok: true, trigger: "follow_up"}
+		}
+	}
+
+	return textDetection(in, items, nil)
+}
+
+// repliedTo is the id of the message this one replies to, or 0. The gateway
+// sends the whole `referenced_message`; `message_reference` alone is enough,
+// for a reply whose original was deleted or a message object built by hand. A
+// forward (Discord's "Forward") also carries a reference, and is not a reply.
+func repliedTo(msg discord.Message) snowflake.ID {
+	if msg.ReferencedMessage != nil {
+		return msg.ReferencedMessage.ID
+	}
+	if ref := msg.MessageReference; ref != nil && ref.Type == discord.MessageReferenceTypeDefault && ref.MessageID != nil {
+		return *ref.MessageID
+	}
+	return 0
 }
 
 // sameSubject reports whether two ingestions are about the same idols and the
@@ -565,34 +771,6 @@ func equalNameSets(a, b string) bool {
 	return true
 }
 
-// chainContinuation matches a bare follow-up: no trigger of its own, posted by
-// the same author, in the same channel, shortly after a ping that opened a set.
-//
-// This is the loosest rule in the file and the only one that infers intent, so
-// it is also the most conservative about what it will look at: anything with a
-// trigger of its own has already been handled above, and both are re-checked
-// here because those branches also bail on "no media" and "roles didn't parse",
-// neither of which should quietly become a continuation of an earlier set.
-func chainContinuation(in inboundMessage) ingestPlan {
-	none := ingestPlan{}
-	msg := in.msg
-
-	if botIsMentioned(in) || len(msg.MentionRoles) > 0 {
-		return none
-	}
-
-	items := collectMedia(msg)
-	if len(items) == 0 {
-		return none
-	}
-
-	if meta, ok := peekChain(msg.ChannelID.String(), msg.Author.ID.String()); ok {
-		return ingestPlan{metadata: meta, items: items, joinsSet: true, viaChain: true, ok: true}
-	}
-
-	return textDetection(in, items, nil)
-}
-
 // textDetection is the last resort: no usable trigger, but the message names an
 // idol the directory knows. See detect.go for why this exists and how hard it
 // tries not to guess.
@@ -600,7 +778,7 @@ func chainContinuation(in inboundMessage) ingestPlan {
 // `extraTerms` is scanned alongside the message text. Pinged role names go in
 // there, so a group-only ping still contributes its group.
 func textDetection(in inboundMessage, items []MediaItem, extraTerms []string) ingestPlan {
-	none := ingestPlan{}
+	none := ingestPlan{ignored: reasonNoTrigger}
 
 	dir, err := loadDirectory()
 	if err != nil {
@@ -617,13 +795,16 @@ func textDetection(in inboundMessage, items []MediaItem, extraTerms []string) in
 
 	// Logged for every hit, at warning level, on purpose: this is the only rule
 	// that decides an attribution nobody stated, and the log is how its hit rate
-	// and its mistakes get reviewed. Noise here is the point.
-	hooks.LogBotWarning("ingested from message text (no ping)", map[string]any{
-		"discord": in.jumpLink(),
-		"idols":   strings.Join(found.idolNames, ", "),
-		"groups":  strings.Join(found.groupNames, ", "),
-		"matched": strings.Join(found.matched, ", "),
-	})
+	// and its mistakes get reviewed. Noise here is the point — but not for a dry
+	// run, which ingests nothing.
+	if !in.dryRun {
+		hooks.LogBotWarning("ingested from message text (no ping)", map[string]any{
+			"discord": in.jumpLink(),
+			"idols":   strings.Join(found.idolNames, ", "),
+			"groups":  strings.Join(found.groupNames, ", "),
+			"matched": strings.Join(found.matched, ", "),
+		})
+	}
 
 	metadata := Metadata{
 		Idol:  strings.Join(found.idolNames, ", "),
@@ -633,11 +814,18 @@ func textDetection(in inboundMessage, items []MediaItem, extraTerms []string) in
 	if err := extractMetadata(in.msg.Content, &metadata); err != nil {
 		return none
 	}
-	return ingestPlan{metadata: metadata, items: items, ok: true}
+	return ingestPlan{metadata: metadata, items: items, ok: true, trigger: "text"}
 }
 
 // uploaderFromMessage decides who an ingested message is credited to, and
-// reports which signal decided it.
+// reports which signal decided it. creditFromMessage, without the user id.
+func uploaderFromMessage(msg discord.Message) (name string, source string) {
+	name, source, _ = creditFromMessage(msg)
+	return name, source
+}
+
+// creditFromMessage decides who an ingested message is credited to, which
+// signal decided it, and that person's Discord user id.
 //
 // # Why the interaction check exists
 //
@@ -659,16 +847,16 @@ func textDetection(in inboundMessage, items []MediaItem, extraTerms []string) in
 // two doors mint two uploader records for them — the problem hooks/uploaders.go
 // exists to clean up. (reupload.go uses EffectiveName for its own attribution,
 // which is a pre-existing divergence rather than a precedent.)
-func uploaderFromMessage(msg discord.Message) (name string, source string) {
+func creditFromMessage(msg discord.Message) (name, source, userID string) {
 	if md := msg.InteractionMetadata; md != nil && md.User.Username != "" {
-		return md.User.Username, "interaction"
+		return md.User.Username, "interaction", md.User.ID.String()
 	}
 	// The deprecated predecessor of the field above. Still populated on older
 	// messages, and cheap to keep reading.
 	if in := msg.Interaction; in != nil && in.User.Username != "" {
-		return in.User.Username, "interaction-legacy"
+		return in.User.Username, "interaction-legacy", in.User.ID.String()
 	}
-	return msg.Author.Username, "author"
+	return msg.Author.Username, "author", msg.Author.ID.String()
 }
 
 // postedByRegexp matches the credit line a relay app leaves when its user opts
@@ -776,41 +964,31 @@ func creditFromPostedBy(msg discord.Message) (name string, ok bool) {
 	return rec.GetString("name"), true
 }
 
-// fillMessageDefaults stamps the message-level fields shared by every entry
-// point. An explicit `uploader:` line wins over whatever uploaderFromMessage
-// works out.
-//
-// For a relayed post that Discord attributes only to the app, the app's own
-// "Posted by:" line is tried before settling on the app's name — see
-// creditFromPostedBy. The interaction invoker still wins when Discord exposes
-// one: it is the exact username, where the line is display text.
+// stampMessage stamps the message-level fields every entry point shares.
+func stampMessage(metadata *Metadata, msg discord.Message, guildID snowflake.ID) {
+	metadata.Discord = fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, msg.ChannelID, msg.ID)
+	metadata.MessageID = msg.ID.String()
+}
+
+// fillMessageDefaults is the explicit paths' version (reupload.go): credit the
+// message author — or the person behind a relay app, see creditFor — unless the
+// metadata already names an uploader, and stamp the message. The passive
+// triggers do the same in ingestInbound, with the poster they worked out first.
 func fillMessageDefaults(metadata *Metadata, msg discord.Message, guildID snowflake.ID) {
 	if metadata.Uploader == "" {
-		name, source := uploaderFromMessage(msg)
-		relayed := msg.Author.Bot || msg.WebhookID != nil
-		if relayed && source == "author" {
-			if credited, ok := creditFromPostedBy(msg); ok {
-				name, source = credited, "posted-by"
-			}
-		}
-		metadata.Uploader = name
-
-		// Logged only for relayed posts, which are the ones that pile into one
-		// bucket — and this line is how we find out whether a given relay app
-		// leaves the invoker recoverable at all, from real traffic rather than by
-		// reading its source. stdout, not system_logs: nothing has gone wrong.
-		if relayed {
+		p := creditFor(inboundMessage{msg: msg})
+		metadata.Uploader = p.name
+		if p.relayed {
 			slog.Info("ingest: crediting a relayed post",
-				"uploader", name,
-				"source", source,
+				"uploader", p.name,
+				"source", p.source,
 				"app", msg.Author.Username,
 				"webhook", msg.WebhookID != nil,
 			)
 		}
 	}
-	metadata.Discord = fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guildID, msg.ChannelID, msg.ID)
+	stampMessage(metadata, msg, guildID)
 	metadata.AuthorID = msg.Author.ID.String()
-	metadata.MessageID = msg.ID.String()
 }
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
@@ -819,13 +997,18 @@ func fillMessageDefaults(metadata *Metadata, msg discord.Message, guildID snowfl
 type ingestOutcome struct {
 	created  int
 	total    int
-	failures []string // "<filename> — <error>" per failed item
-	missing  []string // idol/group names that didn't resolve
-	fatal    string   // set when nothing was attempted at all
+	failures []string // "<filename> — <error>" per failed item, for people
+	// failedItems are the failed items' filenames alone — what the ingest API
+	// may tell another developer's bot. The errors stay in system_logs.
+	failedItems []string
+	missing     []string // idol/group names that didn't resolve
+	fatal       string   // set when nothing was attempted at all
+	fatalCode   string   // the reason code for fatal
 	// Set when the run was deliberately abandoned rather than attempted — a
 	// blocked uploader. Distinct from `fatal`: nothing went wrong, so this must
 	// not read as an error anywhere.
-	skipped string
+	skipped  string
+	skipCode string // the reason code for skipped
 }
 
 // emoji is the reaction marker for this outcome. Configurable — see config.go.
@@ -891,6 +1074,7 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 	if err != nil {
 		slog.Error("relation resolution failed", "err", err)
 		outcome.fatal = fmt.Sprintf("could not resolve names: %v", err)
+		outcome.fatalCode = reasonInternal
 		return outcome
 	}
 	outcome.missing = rel.missing
@@ -911,6 +1095,7 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 	if len(rel.blockedUploaders) > 0 {
 		outcome.skipped = fmt.Sprintf("Not ingested — %s is blocked from ingestion.",
 			strings.Join(rel.blockedUploaders, ", "))
+		outcome.skipCode = reasonBlocked
 		return outcome
 	}
 
@@ -923,6 +1108,7 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 	if automatic && len(rel.optedOutUploaders) > 0 {
 		outcome.skipped = fmt.Sprintf("Not imported — %s turned off automatic import from Discord.",
 			strings.Join(rel.optedOutUploaders, ", "))
+		outcome.skipCode = reasonOptedOut
 		return outcome
 	}
 
@@ -933,6 +1119,7 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 		if len(rel.missing) > 0 {
 			outcome.fatal += " (unresolved: " + strings.Join(rel.missing, ", ") + ")"
 		}
+		outcome.fatalCode = reasonUnresolved
 		return outcome
 	}
 
@@ -965,6 +1152,7 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 		if err != nil {
 			slog.Error("set record creation failed", "err", err)
 			outcome.fatal = fmt.Sprintf("could not create set: %v", err)
+			outcome.fatalCode = reasonInternal
 			return outcome
 		}
 		metadata.SetId = setId
@@ -975,8 +1163,21 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 		if _, err := createContentRecord(item, metadata, rel); err != nil {
 			slog.Warn("unable to process media item", "url", item.URL, "err", err)
 			outcome.failures = append(outcome.failures, fmt.Sprintf("%s — %v", item.Filename, err))
+			outcome.failedItems = append(outcome.failedItems, item.Filename)
 		} else {
 			outcome.created++
+		}
+	}
+
+	// The set is created before the downloads, so a run where every item failed
+	// leaves it empty. An empty set is a broken card on the front page and a
+	// reply target for nothing — remove it, and let a retry start clean.
+	if !isReply && metadata.SetId != "" && outcome.created == 0 {
+		forgetSet(metadata.MessageID)
+		if set, err := App.FindRecordById("contents_sets", metadata.SetId); err == nil {
+			if err := App.Delete(set); err != nil {
+				slog.Warn("could not remove an empty set", "set", metadata.SetId, "err", err)
+			}
 		}
 	}
 
@@ -985,19 +1186,6 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 	// receipt.
 	slog.Info("ingestion finished", "message", metadata.MessageID, "created", outcome.created, "failed", len(outcome.failures))
 	return outcome
-}
-
-// botIsMentioned checks for a literal <@id> mention of the ingesting bot in the
-// message text. Deliberately content-based: a reply that pings the bot's
-// message populates the mentions array but not the content, and must NOT count
-// as a mention trigger.
-func botIsMentioned(in inboundMessage) bool {
-	if in.selfID == 0 {
-		return false
-	}
-	botID := in.selfID.String()
-	return strings.Contains(in.msg.Content, "<@"+botID+">") ||
-		strings.Contains(in.msg.Content, "<@!"+botID+">")
 }
 
 // getRoleNamesFromIDs resolves role IDs to their names within the guild.

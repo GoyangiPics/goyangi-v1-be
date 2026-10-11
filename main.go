@@ -95,9 +95,13 @@ func main() {
 	// GDPR erasure on account deletion: anonymize the uploader credit, drop the
 	// public links rows and solely-owned collections the cascade leaves behind.
 	hooks.RegisterUserDeleteHooks(app)
-	// Wired here to avoid a hooks → bot import cycle.
-	hooks.OnAvifReady = bot.QueueAvifNotification
-	hooks.OnContentPublished = bot.QueueUploadPost
+	// Wired here to avoid a hooks → bot import cycle. The two announcers post
+	// through our own bot, so without it they aren't wired at all — otherwise
+	// each notice would sit in a batch for nothing, holding up restarts.
+	if bot.Enabled() {
+		hooks.OnAvifReady = bot.QueueAvifNotification
+		hooks.OnContentPublished = bot.QueueUploadPost
+	}
 	hooks.BotBusy = bot.Busy
 
 	// Two doors into the same Discord ingestion: our own bot (unless

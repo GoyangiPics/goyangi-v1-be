@@ -12,6 +12,7 @@ import (
 
 	"goyangi-v1-be/hooks"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
@@ -40,54 +41,7 @@ type resolvedRelations struct {
 // every content record.
 func resolveRelations(m Metadata) (resolvedRelations, error) {
 	var rel resolvedRelations
-
-	// One directory read serves every idol/group lookup below — the same
-	// 60s-TTL cache autocomplete, /random and text detection already use —
-	// instead of a full-collection scan per name (a five-name message used to
-	// cost five scans of each table). The TTL means a group or alias edited
-	// seconds ago can take up to a minute to resolve; the real-world
-	// fix-the-alias-and-repost loop runs on minutes, so the trade holds here
-	// too. On a load error, degrade exactly like the old per-name scans did:
-	// nothing resolves and every name reports missing.
-	dir, err := loadDirectory()
-	if err != nil {
-		dir = &directory{}
-	}
-
-	groupIDSet, missingGroups := findGroupIDsByNames(dir, splitTrim(m.Group))
-	for id := range groupIDSet {
-		rel.groupIDs = append(rel.groupIDs, id)
-	}
-	for _, name := range missingGroups {
-		rel.missing = append(rel.missing, "group "+name)
-	}
-
-	for _, name := range splitTrim(m.Idol) {
-		if id, ok := findIdolIDByGroupIDs(dir, name, groupIDSet); ok {
-			rel.idolIDs = append(rel.idolIDs, id)
-			continue
-		}
-		// The stated group didn't contain this idol — usually because the ping
-		// names the group she debuted with rather than where she sits now:
-		// "Eunbi [IZONE]" for a record filed under Solo, "Yuju [GFRIEND]" the
-		// same. The idol is the more specific signal, so when the name resolves
-		// to exactly one person in the whole directory, take her and her real
-		// group rather than dropping the message.
-		//
-		// Only when unambiguous. If two idols share the name, the stated group
-		// is the only thing that could have told them apart, and guessing would
-		// file the media under the wrong person.
-		if id, groupID, ok := findIdolIDByNameAnywhere(dir, name); ok {
-			rel.idolIDs = append(rel.idolIDs, id)
-			if groupID != "" && !groupIDSet[groupID] {
-				groupIDSet[groupID] = true
-				rel.groupIDs = append(rel.groupIDs, groupID)
-			}
-			slog.Info("idol resolved outside the stated group", "idol", name, "stated", m.Group)
-			continue
-		}
-		rel.missing = append(rel.missing, "idol "+name)
-	}
+	rel.idolIDs, rel.groupIDs, rel.missing = resolveSubjects(m)
 
 	for _, name := range splitTrim(m.Uploader) {
 		id, err := lookupOrCreateByName("uploaders", name)
@@ -116,6 +70,71 @@ func resolveRelations(m Metadata) (resolvedRelations, error) {
 	}
 
 	return rel, nil
+}
+
+// resolveSubjects maps the metadata's idol and group names to record ids, and
+// lists the names that matched nothing ("idol X", "group Y"). Read-only, unlike
+// the rest of resolveRelations, which creates uploaders and tags on the fly —
+// so a dry run can use it.
+func resolveSubjects(m Metadata) (idolIDs, groupIDs, missing []string) {
+	// One directory read serves every idol/group lookup below — the same
+	// 60s-TTL cache autocomplete, /random and text detection already use —
+	// instead of a full-collection scan per name (a five-name message used to
+	// cost five scans of each table). The TTL means a group or alias edited
+	// seconds ago can take up to a minute to resolve; the real-world
+	// fix-the-alias-and-repost loop runs on minutes, so the trade holds here
+	// too. On a load error, degrade exactly like the old per-name scans did:
+	// nothing resolves and every name reports missing.
+	dir, err := loadDirectory()
+	if err != nil {
+		dir = &directory{}
+	}
+
+	groupIDSet, missingGroups := findGroupIDsByNames(dir, splitTrim(m.Group))
+	for id := range groupIDSet {
+		groupIDs = append(groupIDs, id)
+	}
+	for _, name := range missingGroups {
+		missing = append(missing, "group "+name)
+	}
+
+	for _, name := range splitTrim(m.Idol) {
+		if id, ok := findIdolIDByGroupIDs(dir, name, groupIDSet); ok {
+			idolIDs = append(idolIDs, id)
+			continue
+		}
+		// The stated group didn't contain this idol — usually because the ping
+		// names the group she debuted with rather than where she sits now:
+		// "Eunbi [IZONE]" for a record filed under Solo, "Yuju [GFRIEND]" the
+		// same. The idol is the more specific signal, so when the name resolves
+		// to exactly one person in the whole directory, take her and her real
+		// group rather than dropping the message.
+		//
+		// Only when unambiguous. If two idols share the name, the stated group
+		// is the only thing that could have told them apart, and guessing would
+		// file the media under the wrong person.
+		if id, groupID, ok := findIdolIDByNameAnywhere(dir, name); ok {
+			idolIDs = append(idolIDs, id)
+			if groupID != "" && !groupIDSet[groupID] {
+				groupIDSet[groupID] = true
+				groupIDs = append(groupIDs, groupID)
+			}
+			slog.Info("idol resolved outside the stated group", "idol", name, "stated", m.Group)
+			continue
+		}
+		missing = append(missing, "idol "+name)
+	}
+
+	return idolIDs, groupIDs, missing
+}
+
+// alreadyIngested reports whether the archive already holds posts from this
+// message. The in-memory claim only covers this process's lifetime; this covers
+// a retry after a restart, and a message the other door took before a switch.
+// Indexed (idx_contents_discord, bot.go).
+func alreadyIngested(jumpLink string) bool {
+	rec, err := App.FindFirstRecordByFilter("contents", "discord = {:link}", dbx.Params{"link": jumpLink})
+	return err == nil && rec != nil
 }
 
 // uploaderFlags is what an uploader record says about ingesting for it.
@@ -456,10 +475,11 @@ func normalizeDate(d string) string {
 	return d
 }
 
-// maxDownloadBytes caps how much we'll pull from a remote source. Matches the
-// 100 MB per-file ceiling the R2 hook enforces at record-create time
-// (hooks.maxUploadSize) so oversized downloads fail fast with a clear error
-// instead of after the upload attempt.
+// maxDownloadBytes caps how much we'll pull from a remote source for one item:
+// the whole file is held in memory until its record is saved. Lower than the
+// R2 hook's per-file ceiling (hooks.maxUploadSize, 256 MB), so this is the
+// limit that binds for anything ingested from Discord, and an oversized file
+// fails here with a clear error rather than after the download.
 const maxDownloadBytes = 100 << 20 // 100 MiB
 
 // mediaDownloadClient fetches remote media. The transport refuses private and

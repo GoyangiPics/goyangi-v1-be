@@ -38,15 +38,15 @@ func TestChainLifecycle(t *testing.T) {
 
 	t.Run("nothing open means no continuation", func(t *testing.T) {
 		resetChains(t)
-		if _, ok := peekChain(channel, author); ok {
+		if _, ok := peekChain(channel, author, time.Now()); ok {
 			t.Error("peekChain succeeded with no chain open")
 		}
 	})
 
 	t.Run("an open chain hands back its set metadata", func(t *testing.T) {
 		resetChains(t)
-		openChain(channel, author, Metadata{SetId: "set1", Idol: "Yujin"})
-		meta, ok := peekChain(channel, author)
+		openChain(channel, author, Metadata{SetId: "set1", Idol: "Yujin"}, time.Now())
+		meta, ok := peekChain(channel, author, time.Now())
 		if !ok {
 			t.Fatal("peekChain failed on an open chain")
 		}
@@ -57,9 +57,9 @@ func TestChainLifecycle(t *testing.T) {
 
 	t.Run("peek does not spend a slot", func(t *testing.T) {
 		resetChains(t)
-		openChain(channel, author, Metadata{SetId: "set1"})
+		openChain(channel, author, Metadata{SetId: "set1"}, time.Now())
 		for range chainMaxFollowUps + 2 {
-			if _, ok := peekChain(channel, author); !ok {
+			if _, ok := peekChain(channel, author, time.Now()); !ok {
 				t.Fatal("peeking alone exhausted the chain")
 			}
 		}
@@ -67,26 +67,26 @@ func TestChainLifecycle(t *testing.T) {
 
 	t.Run("the follow-up budget is finite", func(t *testing.T) {
 		resetChains(t)
-		openChain(channel, author, Metadata{SetId: "set1"})
+		openChain(channel, author, Metadata{SetId: "set1"}, time.Now())
 		for i := range chainMaxFollowUps {
-			if _, ok := peekChain(channel, author); !ok {
+			if _, ok := peekChain(channel, author, time.Now()); !ok {
 				t.Fatalf("follow-up %d was refused, want allowed", i+1)
 			}
-			consumeChain(channel, author)
+			consumeChain(channel, author, time.Now())
 		}
-		if _, ok := peekChain(channel, author); ok {
+		if _, ok := peekChain(channel, author, time.Now()); ok {
 			t.Errorf("follow-up %d was allowed, want refused", chainMaxFollowUps+1)
 		}
 	})
 
 	t.Run("a new ping restarts the budget", func(t *testing.T) {
 		resetChains(t)
-		openChain(channel, author, Metadata{SetId: "set1"})
+		openChain(channel, author, Metadata{SetId: "set1"}, time.Now())
 		for range chainMaxFollowUps {
-			consumeChain(channel, author)
+			consumeChain(channel, author, time.Now())
 		}
-		openChain(channel, author, Metadata{SetId: "set2"})
-		meta, ok := peekChain(channel, author)
+		openChain(channel, author, Metadata{SetId: "set2"}, time.Now())
+		meta, ok := peekChain(channel, author, time.Now())
 		if !ok {
 			t.Fatal("a fresh chain was refused")
 		}
@@ -97,22 +97,22 @@ func TestChainLifecycle(t *testing.T) {
 
 	t.Run("the window closes the chain", func(t *testing.T) {
 		resetChains(t)
-		openChain(channel, author, Metadata{SetId: "set1"})
+		openChain(channel, author, Metadata{SetId: "set1"}, time.Now())
 		ageChain(t, channel, author, chainWindow+time.Second)
-		if _, ok := peekChain(channel, author); ok {
+		if _, ok := peekChain(channel, author, time.Now()); ok {
 			t.Error("a chain past its window still accepted a follow-up")
 		}
 	})
 
 	t.Run("the window slides on each follow-up", func(t *testing.T) {
 		resetChains(t)
-		openChain(channel, author, Metadata{SetId: "set1"})
+		openChain(channel, author, Metadata{SetId: "set1"}, time.Now())
 		// Almost expired, then a follow-up lands — the next one is measured from
 		// that, not from the ping, so a slow drop stays one set.
 		ageChain(t, channel, author, chainWindow-time.Second)
-		consumeChain(channel, author)
+		consumeChain(channel, author, time.Now())
 		ageChain(t, channel, author, chainWindow-time.Second)
-		if _, ok := peekChain(channel, author); !ok {
+		if _, ok := peekChain(channel, author, time.Now()); !ok {
 			t.Error("the window was measured from the ping rather than the last message")
 		}
 	})
@@ -120,15 +120,15 @@ func TestChainLifecycle(t *testing.T) {
 
 func TestChainsAreScopedPerChannelAndAuthor(t *testing.T) {
 	resetChains(t)
-	openChain("chan1", "author1", Metadata{SetId: "set1"})
+	openChain("chan1", "author1", Metadata{SetId: "set1"}, time.Now())
 
-	if _, ok := peekChain("chan1", "author2"); ok {
+	if _, ok := peekChain("chan1", "author2", time.Now()); ok {
 		t.Error("another author in the same channel joined the chain")
 	}
-	if _, ok := peekChain("chan2", "author1"); ok {
+	if _, ok := peekChain("chan2", "author1", time.Now()); ok {
 		t.Error("the same author in another channel joined the chain")
 	}
-	if _, ok := peekChain("chan1", "author1"); !ok {
+	if _, ok := peekChain("chan1", "author1", time.Now()); !ok {
 		t.Error("the owning author lost their own chain")
 	}
 }
@@ -136,8 +136,8 @@ func TestChainsAreScopedPerChannelAndAuthor(t *testing.T) {
 func TestConsumeUnknownChainIsSafe(t *testing.T) {
 	resetChains(t)
 	// Reachable if the chain expires between the peek and the consume.
-	consumeChain("chan1", "author1")
-	if _, ok := peekChain("chan1", "author1"); ok {
+	consumeChain("chan1", "author1", time.Now())
+	if _, ok := peekChain("chan1", "author1", time.Now()); ok {
 		t.Error("consuming a missing chain created one")
 	}
 }
@@ -169,5 +169,27 @@ func TestSameSubject(t *testing.T) {
 		if sameSubject(tt.a, tt.b) {
 			t.Errorf("case %d: want different subjects\n a: %+v\n b: %+v", i, tt.a, tt.b)
 		}
+	}
+}
+
+// The window runs on posting times, not on when messages are processed: a
+// backlog forwarded after downtime is handled in seconds, and two drops posted
+// ten minutes apart must not become one.
+func TestChainWindowUsesPostingTime(t *testing.T) {
+	resetChains(t)
+	posted := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	openChain("chan1", "author1", Metadata{SetId: "set1"}, posted)
+
+	if _, ok := peekChain("chan1", "author1", posted.Add(4*time.Minute)); !ok {
+		t.Error("a follow-up posted 4 minutes later should join")
+	}
+	if _, ok := peekChain("chan1", "author1", posted.Add(10*time.Minute)); ok {
+		t.Error("a follow-up posted 10 minutes later joined, though it was processed at once")
+	}
+
+	// Joining slides the window to the follow-up's posting time.
+	consumeChain("chan1", "author1", posted.Add(4*time.Minute))
+	if _, ok := peekChain("chan1", "author1", posted.Add(8*time.Minute)); !ok {
+		t.Error("the window should run from the last message that joined")
 	}
 }

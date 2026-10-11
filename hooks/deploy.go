@@ -46,6 +46,13 @@ const (
 
 var draining atomic.Bool
 
+// Draining reports whether a supervised restart has stopped taking new work.
+// The ingest API asks before accepting a message, so the other bot gets a
+// retryable 503 rather than a half-done job.
+func Draining() bool {
+	return draining.Load()
+}
+
 // BotBusy reports the Discord bot's in-flight work (bot.Busy). Set in main.go;
 // hooks can't import bot without a cycle.
 var BotBusy func() int
