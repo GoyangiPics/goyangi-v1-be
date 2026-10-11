@@ -100,9 +100,11 @@ func main() {
 	hooks.OnContentPublished = bot.QueueUploadPost
 	hooks.BotBusy = bot.Busy
 
-	// The bot package's record helpers need the app whether or not our own
-	// Discord bot runs (DISCORD_BOT_ENABLED).
+	// Two doors into the same Discord ingestion: our own bot (unless
+	// DISCORD_BOT_ENABLED=false) and the ingest API, through which another bot
+	// forwards the messages it reads (only with INGEST_API_TOKEN set).
 	bot.Init(app)
+	bot.RegisterIngestAPI(app)
 
 	// Start the Discord bot once PocketBase is bootstrapped and serving.
 	if bot.Enabled() {

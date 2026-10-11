@@ -119,6 +119,11 @@ func onMessageCreate(e *events.MessageCreate) {
 	reactTo(client, e.ChannelID, e.MessageID, result.reaction())
 }
 
+// isOurBot reports whether id is this process's own Discord bot, when it runs.
+func isOurBot(id snowflake.ID) bool {
+	return Client != nil && id == Client.ApplicationID
+}
+
 // ingestInbound runs the passive triggers (1–3) on one message, wherever it
 // came from, and reports what happened. The caller owns any feedback in Discord.
 func ingestInbound(in inboundMessage) ingestResult {
@@ -129,7 +134,11 @@ func ingestInbound(in inboundMessage) ingestResult {
 	// bot itself (our own AVIF-ready notices carry cdn links and would be
 	// re-ingested in a loop) and Discord's own system messages (joins, pins,
 	// boosts).
-	if (in.selfID != 0 && msg.Author.ID == in.selfID) || msg.Author.System {
+	//
+	// Our own bot is checked separately from selfID: when another bot forwards
+	// a channel ours also posts in, selfID is theirs, and our notices still
+	// mustn't come back as content.
+	if (in.selfID != 0 && msg.Author.ID == in.selfID) || isOurBot(msg.Author.ID) || msg.Author.System {
 		return ingestResult{status: statusIgnored, reason: "own or system message"}
 	}
 
@@ -146,6 +155,11 @@ func ingestInbound(in inboundMessage) ingestResult {
 	if !claimMessage(msg.ID.String()) {
 		slog.Info("skipping duplicate message event", "id", msg.ID)
 		return ingestResult{status: statusDuplicate, reason: "already handled"}
+	}
+	// The claim is in memory; the archive itself covers a retry after a
+	// restart, and a message the other door took before a switch-over.
+	if alreadyIngested(in.jumpLink()) {
+		return ingestResult{status: statusDuplicate, reason: "already in the archive"}
 	}
 
 	channelID, authorID := msg.ChannelID.String(), msg.Author.ID.String()
