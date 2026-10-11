@@ -39,35 +39,116 @@ import (
 // record with the file attached; the R2 hook then transcodes and moves it to
 // public storage, exactly like an upload from the web UI.
 
-// onMessageCreate handles the passive triggers (1–3).
+// inboundMessage is one Discord message offered to the passive triggers (1–3),
+// from whichever side saw it: this process's own gateway connection
+// (onMessageCreate) or another bot forwarding it over the ingest API
+// (ingest_api.go). Everything the triggers need beyond the message itself is
+// here, so the decisions below run identically either way.
+type inboundMessage struct {
+	msg     discord.Message
+	guildID snowflake.ID
+	// selfID is the bot people @-mention to ask for ingestion: ours on the
+	// gateway, the forwarding bot over the API. Its own messages are never
+	// ingested. Zero turns the @-mention trigger off.
+	selfID snowflake.ID
+	// roleNames resolves pinged role ids to role names ("Idol [Group]").
+	roleNames func(ids []snowflake.ID) ([]string, error)
+}
+
+// jumpLink is the message's discord.com link, which is also what records store
+// in `contents.discord` and what log entries carry as their context handle.
+func (in inboundMessage) jumpLink() string {
+	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", in.guildID, in.msg.ChannelID, in.msg.ID)
+}
+
+// ingestStatus is what happened to an inbound message, in the words the ingest
+// API reports it.
+type ingestStatus string
+
+const (
+	// Not for us: outside the allowlist, no trigger, or no media.
+	statusIgnored ingestStatus = "ignored"
+	// Already handled: a redelivery, a retry, or the other side got there first.
+	statusDuplicate ingestStatus = "duplicate"
+	// Deliberately not ingested — marked ⏭️ so the poster knows it was a choice.
+	statusSkipped ingestStatus = "skipped"
+	// At least one item became a post.
+	statusIngested ingestStatus = "ingested"
+	// Attempted, and nothing came of it. The detail is in system_logs.
+	statusFailed ingestStatus = "failed"
+)
+
+// ingestResult is the verdict on one inbound message.
+type ingestResult struct {
+	status  ingestStatus
+	reason  string // why, for ignored, duplicate and skipped
+	outcome ingestOutcome
+	setID   string // the set the items went into, when any were created
+}
+
+// reaction is the marker for the triggering message, or "" for none. See
+// ingestOutcome.emoji for why failures get nothing.
+func (r ingestResult) reaction() string {
+	switch r.status {
+	case statusSkipped:
+		return emojiSkipped
+	case statusIngested:
+		return emojiSuccess
+	default:
+		return ""
+	}
+}
+
+// onMessageCreate feeds the passive triggers (1–3) from our own gateway.
 func onMessageCreate(e *events.MessageCreate) {
 	defer recoverHandler("messageCreate")
 
-	// Other bots and webhook apps are legitimate posters — people routinely use
-	// them to post content into the scraping channels. Only skip ourselves
-	// (our own AVIF-ready notices carry cdn links and would be re-ingested in a
-	// loop) and Discord's own system messages (joins, pins, boosts).
-	if e.Message.Author.ID == e.Client().ApplicationID || e.Message.Author.System {
-		return
-	}
 	// Ingestion is guild-only (records link back to a guild message URL).
 	if e.GuildID == nil {
 		return
 	}
+	client, guildID := e.Client(), *e.GuildID
+	result := ingestInbound(inboundMessage{
+		msg:     e.Message,
+		guildID: guildID,
+		selfID:  client.ApplicationID,
+		roleNames: func(ids []snowflake.ID) ([]string, error) {
+			return getRoleNamesFromIDs(client, guildID, ids)
+		},
+	})
+	reactTo(client, e.ChannelID, e.MessageID, result.reaction())
+}
 
-	plan := prepareIngestion(e)
+// ingestInbound runs the passive triggers (1–3) on one message, wherever it
+// came from, and reports what happened. The caller owns any feedback in Discord.
+func ingestInbound(in inboundMessage) ingestResult {
+	msg := in.msg
+
+	// Other bots and webhook apps are legitimate posters — people routinely use
+	// them to post content into the scraping channels. Only skip the ingesting
+	// bot itself (our own AVIF-ready notices carry cdn links and would be
+	// re-ingested in a loop) and Discord's own system messages (joins, pins,
+	// boosts).
+	if (in.selfID != 0 && msg.Author.ID == in.selfID) || msg.Author.System {
+		return ingestResult{status: statusIgnored, reason: "own or system message"}
+	}
+
+	plan := prepareIngestion(in)
+	if plan.skipped != "" {
+		return ingestResult{status: statusSkipped, reason: plan.skipped}
+	}
 	if !plan.ok {
-		return
+		return ingestResult{status: statusIgnored, reason: "no trigger or no media"}
 	}
 
-	// Skip Discord redeliveries of an already-handled message. Claim before
-	// any side effect (replies, records) so a redelivery can't double them.
-	if !claimMessage(e.MessageID.String()) {
-		slog.Info("skipping duplicate message event", "id", e.MessageID)
-		return
+	// Skip redeliveries of an already-handled message. Claim before any side
+	// effect (replies, records) so a redelivery can't double them.
+	if !claimMessage(msg.ID.String()) {
+		slog.Info("skipping duplicate message event", "id", msg.ID)
+		return ingestResult{status: statusDuplicate, reason: "already handled"}
 	}
 
-	channelID, authorID := e.ChannelID.String(), e.Message.Author.ID.String()
+	channelID, authorID := msg.ChannelID.String(), msg.Author.ID.String()
 
 	// Spent here rather than in peekChain, so a redelivery that never gets past
 	// the claim above can't burn a follow-up slot.
@@ -80,19 +161,34 @@ func onMessageCreate(e *events.MessageCreate) {
 			"channel", channelID, "set", plan.metadata.SetId)
 	}
 
-	fillMessageDefaults(&plan.metadata, e.Message, *e.GuildID)
+	fillMessageDefaults(&plan.metadata, msg, in.guildID)
 
 	outcome := runIngestion(plan.metadata, plan.items, plan.joinsSet, true)
-	renderOutcomeToMessage(e, outcome)
+	logOutcome(outcome, in.jumpLink())
+
+	result := ingestResult{status: statusFailed, outcome: outcome}
+	switch {
+	case outcome.skipped != "":
+		result.status, result.reason = statusSkipped, outcome.skipped
+	case outcome.fatal == "" && outcome.created > 0:
+		result.status = statusIngested
+	}
 
 	// A fresh set opens a chain for its author, so the bare messages that follow
 	// join it. runIngestion took metadata by value and stamped the new set id on
 	// its own copy, so the registry it wrote is where that copy can be read back.
-	if !plan.joinsSet && outcome.created > 0 {
-		if setMeta, found := lookupSet(e.MessageID.String()); found {
+	if plan.joinsSet {
+		result.setID = plan.metadata.SetId
+	} else if setMeta, found := lookupSet(msg.ID.String()); found {
+		result.setID = setMeta.SetId
+		if outcome.created > 0 {
 			openChain(channelID, authorID, setMeta)
 		}
 	}
+	if outcome.created == 0 {
+		result.setID = ""
+	}
+	return result
 }
 
 // ingestModalPrefix marks a modal submission as belonging to the context menu,
@@ -311,19 +407,21 @@ type ingestPlan struct {
 	joinsSet bool
 	viaChain bool
 	ok       bool
+	// skipped is set when the message is deliberately NOT ingested and the
+	// poster should see ⏭️ for it, rather than silence.
+	skipped string
 }
 
 // prepareIngestion decides whether the message should be ingested and, if so,
 // assembles its metadata and media items. `ok` is false when the message isn't
-// for us (no trigger, no media, or a metadata error already reported to the
-// poster).
-func prepareIngestion(e *events.MessageCreate) ingestPlan {
+// for us (no trigger, no media, or a metadata error already logged).
+func prepareIngestion(in inboundMessage) ingestPlan {
 	none := ingestPlan{}
-	msg := e.Message
+	msg := in.msg
 
 	// Ingestion is confined to the allowed channels, whatever the trigger —
 	// the bot must not re-upload media from anywhere else.
-	if !allowedChannelIDs[e.ChannelID] {
+	if !allowedChannelIDs[msg.ChannelID] {
 		return none
 	}
 
@@ -338,17 +436,15 @@ func prepareIngestion(e *events.MessageCreate) ingestPlan {
 	// it" used to work and now won't; the ⏭️ reaction is what keeps that
 	// discoverable instead of mysterious.
 	//
-	// Returns before claimMessage, so the reaction is added here rather than
-	// through the usual outcome rendering. Re-reacting on a gateway redelivery is
-	// idempotent, so no dedupe is needed.
-	if botIsMentioned(e) && len(msg.MentionRoles) > 0 {
-		react(e, emojiSkipped)
-		return none
+	// Returns before claimMessage, so a redelivery reports the skip again —
+	// re-reacting is idempotent, so no dedupe is needed.
+	if botIsMentioned(in) && len(msg.MentionRoles) > 0 {
+		return ingestPlan{skipped: "role ping and @-mention together: a re-announcement of something already posted"}
 	}
 
 	switch {
 	// Explicit @-mention.
-	case botIsMentioned(e):
+	case botIsMentioned(in):
 		items := collectMedia(msg)
 		if len(items) == 0 {
 			return none
@@ -363,7 +459,7 @@ func prepareIngestion(e *events.MessageCreate) ingestPlan {
 			// derived data only, never verbatim user speech (retention promise
 			// in the privacy policy).
 			hooks.LogBotError("metadata parse failed: "+err.Error(), map[string]any{
-				"discord": messageURL(e),
+				"discord": in.jumpLink(),
 			})
 			return none
 		}
@@ -376,7 +472,7 @@ func prepareIngestion(e *events.MessageCreate) ingestPlan {
 			return none
 		}
 
-		pingRoleNames, err := getRoleNamesFromIDs(e.Client(), *e.GuildID, msg.MentionRoles)
+		pingRoleNames, err := in.roleNames(msg.MentionRoles)
 		if err != nil {
 			slog.Error("unable to resolve role names", "err", err)
 			return none
@@ -393,7 +489,7 @@ func prepareIngestion(e *events.MessageCreate) ingestPlan {
 			// this, a group ping made the message WORSE off than no ping at all,
 			// because it claimed the message and then bailed.
 			slog.Info("role ping without usable idol/group, trying the text", "roles", pingRoleNames)
-			return textDetection(e, items, pingRoleNames)
+			return textDetection(in, items, pingRoleNames)
 		}
 
 		// Re-pinging the same roles is how plenty of people post one drop: three
@@ -402,7 +498,7 @@ func prepareIngestion(e *events.MessageCreate) ingestPlan {
 		// about the same subject joins the set the first one opened. It spends a
 		// follow-up slot like any other continuation, so the same 3-message
 		// budget applies.
-		if open, ok := peekChain(e.ChannelID.String(), msg.Author.ID.String()); ok && sameSubject(open, metadata) {
+		if open, ok := peekChain(msg.ChannelID.String(), msg.Author.ID.String()); ok && sameSubject(open, metadata) {
 			return ingestPlan{metadata: open, items: items, joinsSet: true, viaChain: true, ok: true}
 		}
 		return ingestPlan{metadata: metadata, items: items, ok: true}
@@ -422,7 +518,7 @@ func prepareIngestion(e *events.MessageCreate) ingestPlan {
 		// so this falls through to the chain check rather than returning.
 	}
 
-	return chainContinuation(e)
+	return chainContinuation(in)
 }
 
 // sameSubject reports whether two ingestions are about the same idols and the
@@ -463,11 +559,11 @@ func equalNameSets(a, b string) bool {
 // trigger of its own has already been handled above, and both are re-checked
 // here because those branches also bail on "no media" and "roles didn't parse",
 // neither of which should quietly become a continuation of an earlier set.
-func chainContinuation(e *events.MessageCreate) ingestPlan {
+func chainContinuation(in inboundMessage) ingestPlan {
 	none := ingestPlan{}
-	msg := e.Message
+	msg := in.msg
 
-	if botIsMentioned(e) || len(msg.MentionRoles) > 0 {
+	if botIsMentioned(in) || len(msg.MentionRoles) > 0 {
 		return none
 	}
 
@@ -476,11 +572,11 @@ func chainContinuation(e *events.MessageCreate) ingestPlan {
 		return none
 	}
 
-	if meta, ok := peekChain(e.ChannelID.String(), msg.Author.ID.String()); ok {
+	if meta, ok := peekChain(msg.ChannelID.String(), msg.Author.ID.String()); ok {
 		return ingestPlan{metadata: meta, items: items, joinsSet: true, viaChain: true, ok: true}
 	}
 
-	return textDetection(e, items, nil)
+	return textDetection(in, items, nil)
 }
 
 // textDetection is the last resort: no usable trigger, but the message names an
@@ -489,14 +585,14 @@ func chainContinuation(e *events.MessageCreate) ingestPlan {
 //
 // `extraTerms` is scanned alongside the message text. Pinged role names go in
 // there, so a group-only ping still contributes its group.
-func textDetection(e *events.MessageCreate, items []MediaItem, extraTerms []string) ingestPlan {
+func textDetection(in inboundMessage, items []MediaItem, extraTerms []string) ingestPlan {
 	none := ingestPlan{}
 
 	dir, err := loadDirectory()
 	if err != nil {
 		return none
 	}
-	content := e.Message.Content
+	content := in.msg.Content
 	if len(extraTerms) > 0 {
 		content += "\n" + strings.Join(extraTerms, "\n")
 	}
@@ -509,7 +605,7 @@ func textDetection(e *events.MessageCreate, items []MediaItem, extraTerms []stri
 	// that decides an attribution nobody stated, and the log is how its hit rate
 	// and its mistakes get reviewed. Noise here is the point.
 	hooks.LogBotWarning("ingested from message text (no ping)", map[string]any{
-		"discord": messageURL(e),
+		"discord": in.jumpLink(),
 		"idols":   strings.Join(found.idolNames, ", "),
 		"groups":  strings.Join(found.groupNames, ", "),
 		"matched": strings.Join(found.matched, ", "),
@@ -520,7 +616,7 @@ func textDetection(e *events.MessageCreate, items []MediaItem, extraTerms []stri
 		Group: strings.Join(found.groupNames, ", "),
 	}
 	// `key: value` lines still win — someone who wrote them meant them.
-	if err := extractMetadata(e.Message.Content, &metadata); err != nil {
+	if err := extractMetadata(in.msg.Content, &metadata); err != nil {
 		return none
 	}
 	return ingestPlan{metadata: metadata, items: items, ok: true}
@@ -877,14 +973,17 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 	return outcome
 }
 
-// botIsMentioned checks for a literal <@id> mention in the message text.
-// Deliberately content-based: a reply that pings the bot's message populates
-// the mentions array but not the content, and must NOT count as a mention
-// trigger.
-func botIsMentioned(e *events.MessageCreate) bool {
-	botID := e.Client().ApplicationID.String()
-	return strings.Contains(e.Message.Content, "<@"+botID+">") ||
-		strings.Contains(e.Message.Content, "<@!"+botID+">")
+// botIsMentioned checks for a literal <@id> mention of the ingesting bot in the
+// message text. Deliberately content-based: a reply that pings the bot's
+// message populates the mentions array but not the content, and must NOT count
+// as a mention trigger.
+func botIsMentioned(in inboundMessage) bool {
+	if in.selfID == 0 {
+		return false
+	}
+	botID := in.selfID.String()
+	return strings.Contains(in.msg.Content, "<@"+botID+">") ||
+		strings.Contains(in.msg.Content, "<@!"+botID+">")
 }
 
 // getRoleNamesFromIDs resolves role IDs to their names within the guild.
@@ -909,15 +1008,9 @@ func getRoleNamesFromIDs(client *disbot.Client, guildID snowflake.ID, roleIDs []
 	return roleNames, nil
 }
 
-// ─── Poster feedback (message path) ──────────────────────────────────────────
-
-// renderOutcomeToMessage reports the outcome on the triggering message. Only a
-// reaction is left in the channel — the detail goes to the "system_logs"
-// collection so the scraping channels stay free of bot chatter.
-func renderOutcomeToMessage(e *events.MessageCreate, o ingestOutcome) {
-	react(e, o.emoji())
-	logOutcome(o, messageURL(e))
-}
+// ─── Poster feedback ─────────────────────────────────────────────────────────
+// Only a reaction is left in the channel — the detail goes to the "system_logs"
+// collection (logOutcome) so the scraping channels stay free of bot chatter.
 
 // logOutcome records anything that went wrong during an ingestion run. A clean
 // run writes nothing — system_logs is for problems, not an audit trail.
@@ -946,19 +1039,6 @@ func logOutcome(o ingestOutcome, msgURL string) {
 	case len(o.missing) > 0:
 		hooks.LogBotWarning("ingested with unresolved names: "+strings.Join(o.missing, ", "), ctx)
 	}
-}
-
-// messageURL rebuilds the jump link for the triggering message, used as the
-// context handle on a log entry.
-func messageURL(e *events.MessageCreate) string {
-	if e.GuildID == nil {
-		return ""
-	}
-	return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", *e.GuildID, e.ChannelID, e.MessageID)
-}
-
-func react(e *events.MessageCreate, emoji string) {
-	reactTo(e.Client(), e.ChannelID, e.MessageID, emoji)
 }
 
 func reactTo(client *disbot.Client, channelID, messageID snowflake.ID, emoji string) {
