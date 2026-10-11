@@ -119,9 +119,13 @@ func newIngestFixture(t *testing.T) *ingestFixture {
 	forwardersMu.Unlock()
 	ourBotID.Store(0)
 	realWait, realQueued, realPending, realDraining, realBots := ingestWait, queuedWait, maxPendingIngest, isDraining, ingestBotIDs
+	realGuilds, realRoles := manualGuildIDs, manualIngestRoleIDs
 	ingestBotIDs = map[snowflake.ID]bool{}
+	manualGuildIDs = map[snowflake.ID]bool{snowflake.MustParse(testGuild): true}
+	manualIngestRoleIDs = map[snowflake.ID]bool{snowflake.MustParse(testModRole): true}
 	t.Cleanup(func() {
 		ingestWait, queuedWait, maxPendingIngest, isDraining, ingestBotIDs = realWait, realQueued, realPending, realDraining, realBots
+		manualGuildIDs, manualIngestRoleIDs = realGuilds, realRoles
 	})
 
 	channel, _ := snowflake.Parse(testChannel)
@@ -713,6 +717,8 @@ const (
 	testModRole = "1000000000000000222"
 )
 
+var modRoles = []string{testModRole}
+
 // linkedUploader makes an uploader whose account may upload, as the manual
 // paths require of the person asking.
 func (f *ingestFixture) linkedUploader(t *testing.T, name string, canUpload bool) {
@@ -802,7 +808,7 @@ func TestManualIngestGates(t *testing.T) {
 	withIngestRoles(t, testModRole)
 	m := func(id string) message { return message{id: id, files: []string{"a.png"}} }
 
-	code, resp, raw := f.manual(t, manualBody(m("2000000000000000310"), "mod", nil, []string{"Yujin"}, nil))
+	code, resp, raw := f.manual(t, manualBody(m("2000000000000000310"), "mod", []string{}, []string{"Yujin"}, nil))
 	expect(t, "without the role", code, resp, raw, http.StatusOK, string(statusDenied), reasonNoPermission, "")
 	code, resp, raw = f.manual(t, manualBody(m("2000000000000000311"), "stranger", []string{testModRole}, []string{"Yujin"}, nil))
 	expect(t, "not an uploader", code, resp, raw, http.StatusOK, string(statusDenied), reasonCannotUpload, "")
@@ -823,7 +829,7 @@ func TestManualIngestGates(t *testing.T) {
 	// Request problems are 400s, not answers for the person.
 	without := func(key string) string {
 		var req map[string]any
-		_ = json.Unmarshal([]byte(manualBody(m("2000000000000000315"), "mod", nil, []string{"Yujin"}, nil)), &req)
+		_ = json.Unmarshal([]byte(manualBody(m("2000000000000000315"), "mod", modRoles, []string{"Yujin"}, nil)), &req)
 		delete(req, key)
 		b, _ := json.Marshal(req)
 		return string(b)
@@ -841,9 +847,9 @@ func TestManualIngestJoinsASet(t *testing.T) {
 	f.linkedUploader(t, "mod", true)
 
 	// A set made by a first request, then a second request adds to it.
-	code, first, raw := f.manual(t, manualBody(message{id: "2000000000000000320", files: []string{"a.png"}}, "mod", nil, []string{"Yujin"}, nil))
+	code, first, raw := f.manual(t, manualBody(message{id: "2000000000000000320", files: []string{"a.png"}}, "mod", modRoles, []string{"Yujin"}, nil))
 	expect(t, "first", code, first, raw, http.StatusOK, string(statusIngested), "", "success")
-	code, second, raw := f.manual(t, manualBody(message{id: "2000000000000000321", files: []string{"b.png"}}, "mod", nil, []string{"Yujin"},
+	code, second, raw := f.manual(t, manualBody(message{id: "2000000000000000321", files: []string{"b.png"}}, "mod", modRoles, []string{"Yujin"},
 		map[string]any{"set": first.Set}))
 	expect(t, "second, into the first's set", code, second, raw, http.StatusOK, string(statusIngested), "", "success")
 	if second.Set != first.Set || f.count(t, "contents_sets") != 1 {
@@ -854,7 +860,7 @@ func TestManualIngestJoinsASet(t *testing.T) {
 func TestManualIngestDryRun(t *testing.T) {
 	f := newIngestFixture(t)
 	f.linkedUploader(t, "mod", true)
-	code, resp, raw := f.manual(t, manualBody(message{id: "2000000000000000330", files: []string{"a.png"}}, "mod", nil, []string{"Yujin"},
+	code, resp, raw := f.manual(t, manualBody(message{id: "2000000000000000330", files: []string{"a.png"}}, "mod", modRoles, []string{"Yujin"},
 		map[string]any{"dry_run": true}))
 	if code != http.StatusOK || !resp.DryRun || resp.Status != string(statusIngested) || resp.Preview == nil ||
 		resp.Preview.Trigger != "manual" || resp.Preview.Uploader != "mod" || len(resp.Preview.Items) != 1 {
@@ -891,7 +897,7 @@ func TestManualIngestRefusesWhatIsAlreadyArchived(t *testing.T) {
 	code, resp, raw := f.post(t, body(message{id: id, mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
 	expect(t, "archived automatically", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
 
-	code, resp, raw = f.manual(t, manualBody(message{id: id, files: []string{"a.png"}}, "mod", nil, []string{"Yujin"}, nil))
+	code, resp, raw = f.manual(t, manualBody(message{id: id, files: []string{"a.png"}}, "mod", modRoles, []string{"Yujin"}, nil))
 	expect(t, "asked for afterwards", code, resp, raw, http.StatusOK, string(statusDuplicate), reasonAlreadyArchived, "")
 	if n := f.count(t, "contents"); n != 1 {
 		t.Errorf("%d posts, want 1", n)
@@ -1006,11 +1012,113 @@ func TestDryRunsDontLookUpAlbums(t *testing.T) {
 	if code != http.StatusOK || resp.Preview == nil || len(resp.Preview.Items) != 1 || resp.Preview.Items[0].Filetype != "album" {
 		t.Errorf("forwarded dry run: %d %+v — %s", code, resp, raw)
 	}
-	code, resp, raw = f.manual(t, manualBody(message{id: "2000000000000000461", content: album}, "mod", nil, []string{"Yujin"}, map[string]any{"dry_run": true}))
+	code, resp, raw = f.manual(t, manualBody(message{id: "2000000000000000461", content: album}, "mod", modRoles, []string{"Yujin"}, map[string]any{"dry_run": true}))
 	if code != http.StatusOK || resp.Preview == nil || len(resp.Preview.Items) != 1 || resp.Preview.Items[0].Filetype != "album" {
 		t.Errorf("manual dry run: %d %+v — %s", code, resp, raw)
 	}
 	if n := lookups.Load(); n != 0 {
 		t.Errorf("%d album lookups in dry runs, want none", n)
+	}
+}
+
+// The person who asked is credited, whatever an `uploader:` line in the
+// message says: that line would name someone nobody checked.
+func TestManualIngestCreditsTheRequesterOnly(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	const id = "2000000000000000500"
+	code, resp, raw := f.manual(t, manualBody(message{id: id, content: "uploader: somebodyelse", files: []string{"a.png"}}, "mod", modRoles, []string{"Yujin"}, nil))
+	expect(t, "with an uploader line", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if got := f.uploaderOf(t, f.postFor(t, id)); got != "mod" {
+		t.Errorf("credited %q, want the requester (mod)", got)
+	}
+	if rec, _ := findUploaderByNames("somebodyelse"); rec != nil {
+		t.Error("an uploader was created for the name in the message")
+	}
+}
+
+// Matched on the unique username, never on a display name anyone can choose.
+func TestManualIngestIgnoresDisplayNames(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	var req map[string]any
+	_ = json.Unmarshal([]byte(manualBody(message{id: "2000000000000000510", files: []string{"a.png"}}, "evil", modRoles, []string{"Yujin"}, nil)), &req)
+	req["requested_by"].(map[string]any)["global_name"] = "mod"
+	b, _ := json.Marshal(req)
+	code, resp, raw := f.manual(t, string(b))
+	expect(t, "display name set to an uploader's", code, resp, raw, http.StatusOK, string(statusDenied), reasonCannotUpload, "")
+}
+
+func TestManualIngestFailsClosed(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+
+	// A server not on the list: a role there proves nothing about this one.
+	manualGuildIDs = map[snowflake.ID]bool{snowflake.MustParse("1000000000000000999"): true}
+	code, resp, raw := f.manual(t, manualBody(message{id: "2000000000000000520", files: []string{"a.png"}}, "mod", modRoles, []string{"Yujin"}, nil))
+	expect(t, "server not listed", code, resp, raw, http.StatusOK, string(statusDenied), reasonServerNotListed, "")
+	manualGuildIDs = map[snowflake.ID]bool{snowflake.MustParse(testGuild): true}
+
+	// No roles configured: nobody may ask.
+	manualIngestRoleIDs = map[snowflake.ID]bool{}
+	code, resp, raw = f.manual(t, manualBody(message{id: "2000000000000000521", files: []string{"a.png"}}, "mod", modRoles, []string{"Yujin"}, nil))
+	expect(t, "no roles configured", code, resp, raw, http.StatusOK, string(statusDenied), reasonNoPermission, "")
+	if n := f.count(t, "contents"); n != 0 {
+		t.Errorf("%d posts created", n)
+	}
+}
+
+// An answer about one person isn't served to the next.
+func TestManualAnswersArePerRequest(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "blockedmod", true)
+	f.linkedUploader(t, "mod", true)
+	rec, _ := findUploaderByNames("blockedmod")
+	rec.Set("blockIngest", true)
+	mustSaveRecord(t, f.app, rec)
+
+	m := message{id: "2000000000000000530", files: []string{"a.png"}}
+	code, resp, raw := f.manual(t, manualBody(m, "blockedmod", modRoles, []string{"Yujin"}, nil))
+	expect(t, "blocked requester", code, resp, raw, http.StatusOK, string(statusSkipped), reasonBlocked, "skipped")
+	code, resp, raw = f.manual(t, manualBody(m, "mod", modRoles, []string{"Yujin"}, nil))
+	expect(t, "next requester", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+}
+
+// A follow-up resent after a restart has lost what tied it to its set, but
+// its posts are on the site: that's a duplicate, not an unarchivable message.
+func TestResentFollowUpIsADuplicate(t *testing.T) {
+	f := newIngestFixture(t)
+	f.post(t, body(message{id: "2000000000000000540", mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
+	followUp := body(message{id: "2000000000000000541", files: []string{"b.png"}}, request{})
+	code, resp, raw := f.post(t, followUp)
+	expect(t, "follow-up", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+
+	// A restart: no claims, no jobs, no chains.
+	processedMu.Lock()
+	processedMsgs = map[string]time.Time{}
+	processedMu.Unlock()
+	ingestJobsMu.Lock()
+	ingestJobs = map[string]*ingestJob{}
+	ingestJobsMu.Unlock()
+	chainMu.Lock()
+	chains = map[string]chainEntry{}
+	chainMu.Unlock()
+
+	code, resp, raw = f.post(t, followUp)
+	expect(t, "resent follow-up", code, resp, raw, http.StatusOK, string(statusDuplicate), reasonAlreadyArchived, "")
+}
+
+func TestManualDryRunCountsAndKeepsPreviewWhenTaken(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "mod", true)
+	m := message{id: "2000000000000000550", files: []string{"a.png", "b.png"}}
+	code, resp, raw := f.manual(t, manualBody(m, "mod", modRoles, []string{"Yujin"}, map[string]any{"dry_run": true}))
+	if code != http.StatusOK || resp.Total != 2 || resp.Preview == nil {
+		t.Fatalf("dry run: %d %+v — %s", code, resp, raw)
+	}
+	claimMessage("2000000000000000550") // in flight elsewhere
+	code, resp, raw = f.manual(t, manualBody(m, "mod", modRoles, []string{"Yujin"}, map[string]any{"dry_run": true}))
+	if code != http.StatusOK || resp.Status != string(statusDuplicate) || resp.Preview == nil {
+		t.Errorf("dry run of a claimed message: %d %+v — %s", code, resp, raw)
 	}
 }

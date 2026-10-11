@@ -137,11 +137,12 @@ const (
 	reasonInternal         = "internal_error"
 
 	// Manual requests ("Ingest this message" from another bot) only.
-	reasonNoPermission = "no_permission" // lacks every DISCORD_INGEST_ROLE_IDS role
-	reasonCannotUpload = "cannot_upload" // not linked to a goyangi account allowed to upload
-	reasonBadSet       = "bad_set"       // the set link is wrong or the set doesn't exist
-	reasonUnknownIdols = "unknown_idols" // names goyangi doesn't know
-	reasonNoIdols      = "no_idols"      // none given
+	reasonServerNotListed = "server_not_listed" // the message's server isn't in INGEST_GUILD_IDS
+	reasonNoPermission    = "no_permission"     // lacks every DISCORD_INGEST_ROLE_IDS role
+	reasonCannotUpload    = "cannot_upload"     // not linked to a goyangi account allowed to upload
+	reasonBadSet          = "bad_set"           // the set link is wrong or the set doesn't exist
+	reasonUnknownIdols    = "unknown_idols"     // names goyangi doesn't know
+	reasonNoIdols         = "no_idols"          // none given
 )
 
 // ingestResult is the verdict on one inbound message.
@@ -340,6 +341,11 @@ func ingestInbound(in inboundMessage) ingestResult {
 	switch {
 	case plan.skipped != "":
 		return ingestResult{status: statusSkipped, reason: plan.skipped}
+	case !plan.ok && plan.ignored == reasonNoTrigger && alreadyIngested(in.jumpLink()):
+		// A follow-up or reply resent after a restart, or after the hour: what
+		// tied it to its set is gone, but its posts aren't. Say so, rather
+		// than calling an archived message unarchivable.
+		return ingestResult{status: statusDuplicate, reason: reasonAlreadyArchived}
 	case !plan.ok:
 		return ingestResult{status: statusIgnored, reason: plan.ignored}
 	}

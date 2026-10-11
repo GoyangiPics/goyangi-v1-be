@@ -415,6 +415,12 @@ func manualIngestCore(msg discord.Message, guildID snowflake.ID, req manualInges
 		return manualResult{refusal: err.Error(), refusalCode: reasonNoIdols}
 	}
 	metadata.Idol, metadata.Group = idolList, groupList
+	// And the credit, above all: whoever asked is who the permission check
+	// passed. An `uploader:` line in the message would otherwise name anyone
+	// at all — and mint an unlinked uploader for a name nobody checked.
+	if req.uploader != "" {
+		metadata.Uploader = req.uploader
+	}
 
 	// Tags from the command win over any `tags:` line, for the same reason the
 	// idols do: they are what the caller explicitly asked for.

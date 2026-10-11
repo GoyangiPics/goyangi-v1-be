@@ -339,9 +339,16 @@ func sweepIngestJobsLocked(now time.Time) {
 // `ignored` (an imgur album that didn't resolve last time may now), a `denied`
 // (permissions may have been fixed since) — or when nothing was saved, so the
 // claim was given back.
-func (j *ingestJob) retryableLocked() bool {
+func (j *ingestJob) retryableLocked(key string) bool {
 	if j.finished.IsZero() {
 		return false
+	}
+	// A manual answer is about the person who asked — blocked, not allowed —
+	// and about the moment: "already handled" can mean an automatic run that
+	// went on to save nothing. So only a success is kept; anything else is
+	// asked again, which the claim and the archive check make safe.
+	if strings.HasPrefix(key, manualJobPrefix) {
+		return ingestStatus(j.response.Status) != statusIngested
 	}
 	switch ingestStatus(j.response.Status) {
 	case statusIgnored, statusDenied:
@@ -360,7 +367,7 @@ func (j *ingestJob) retryableLocked() bool {
 func startJob(key string, queue func() *channelTurn, run func() ingestResponse) (job *ingestJob, ok, behind bool) {
 	ingestJobsMu.Lock()
 	sweepIngestJobsLocked(time.Now())
-	if existing, found := ingestJobs[key]; found && !existing.retryableLocked() {
+	if existing, found := ingestJobs[key]; found && !existing.retryableLocked(key) {
 		ingestJobsMu.Unlock()
 		return existing, true, false
 	}
@@ -395,6 +402,9 @@ func startJob(key string, queue func() *channelTurn, run func() ingestResponse) 
 		}
 		id := strings.TrimPrefix(key, manualJobPrefix)
 		job.response = ingestResponse{MessageID: id, Status: string(statusFailed), Reason: reasonInternal}
+		if strings.HasPrefix(key, manualJobPrefix) {
+			job.response.Reply = "❌ Something went wrong on goyangi's side. Try again shortly."
+		}
 		defer recoverHandler("ingestAPI")
 
 		if turn != nil {

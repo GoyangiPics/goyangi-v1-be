@@ -28,9 +28,18 @@ import (
 // asks the question and shows the answer.
 //
 // Like our commands, it works in any channel: a person named one message and
-// asked for it, so the allowlist doesn't apply and the gates above do. The
-// answer carries `reply`, the text our bot would have shown the person, ready
-// to show.
+// asked for it, so the allowlist doesn't apply and the gates above do. Two of
+// those gates are stricter here than on our commands, because our commands
+// have something this route doesn't — Discord itself, hiding the command from
+// members without permission and vouching for who ran it:
+//
+//   - the role gate fails closed: with DISCORD_INGEST_ROLE_IDS unset, nobody
+//     may ask;
+//   - the person is matched on their Discord username, which is unique, and
+//     not on their display name, which anyone can set to anything.
+//
+// And the message must come from a server listed in INGEST_GUILD_IDS. The
+// answer carries `reply`, the text our bot would have shown the person.
 
 // manualJobPrefix keeps manual answers apart from passive verdicts for the same
 // message in the job registry.
@@ -46,10 +55,9 @@ type manualAPIRequest struct {
 	// Who asked: credited as the uploader, and checked like our commands check
 	// the person running them.
 	RequestedBy *struct {
-		ID         string   `json:"id"`
-		Username   string   `json:"username"`
-		GlobalName string   `json:"global_name"`
-		Roles      []string `json:"roles"`
+		ID       string   `json:"id"`
+		Username string   `json:"username"`
+		Roles    []string `json:"roles"`
 	} `json:"requested_by"`
 	// Idol names, as typed or picked. "Name — Group" disambiguates a name
 	// shared by several groups; record ids work too.
@@ -64,7 +72,7 @@ type manualAPIRequest struct {
 type manualAsk struct {
 	msg      discord.Message
 	guildID  snowflake.ID
-	names    []string // the requester's display name and username, in that order
+	username string // the requester's Discord username
 	roles    []snowflake.ID
 	idolsRaw string
 	tagsRaw  string
@@ -129,18 +137,10 @@ func (req manualAPIRequest) validate() (ask manualAsk, door snowflake.ID, err er
 		roles = append(roles, rid)
 	}
 
-	// Display name first, as our commands check it (EffectiveName, then
-	// Username): see callerUploadDenial for why the order matters.
-	var names []string
-	if g := strings.TrimSpace(rb.GlobalName); g != "" {
-		names = append(names, g)
-	}
-	names = append(names, strings.TrimSpace(rb.Username))
-
 	return manualAsk{
 		msg:      msg,
 		guildID:  *msg.GuildID,
-		names:    names,
+		username: strings.TrimSpace(rb.Username),
 		roles:    roles,
 		idolsRaw: strings.Join(req.Idols, ", "),
 		tagsRaw:  strings.Join(req.Tags, ", "),
@@ -159,10 +159,13 @@ func runManual(a manualAsk, dryRun bool) ingestResponse {
 		return ingestResponse{MessageID: id, Status: string(status), Reason: code, Reply: text}
 	}
 
+	if !manualGuildIDs[a.guildID] {
+		return refuse(statusDenied, reasonServerNotListed, "goyangi doesn't archive from this server.")
+	}
 	if !requesterMayIngest(a.roles) {
 		return refuse(statusDenied, reasonNoPermission, "You don't have permission to use this command.")
 	}
-	denial, uploaderName := callerUploadDenial(a.names...)
+	denial, uploaderName := callerUploadDenial(a.username)
 	if denial != "" {
 		return refuse(statusDenied, reasonCannotUpload, string(denial))
 	}
@@ -198,6 +201,11 @@ func runManual(a manualAsk, dryRun bool) ingestResponse {
 
 	req := manualIngest{idolNames: idolNames, groupNames: groupNames, tagsRaw: a.tagsRaw, uploader: uploaderName}
 	res := manualIngestCore(a.msg, a.guildID, req, joinSetID, dryRun)
+	if dryRun && res.refusalCode == reasonAlreadyHandled {
+		resp := manualPreview(id, res, joinSetID)
+		resp.Status, resp.Reason, resp.Reply = string(statusDuplicate), reasonAlreadyHandled, res.refusal
+		return resp
+	}
 	if res.refusalCode != "" {
 		status := statusFailed
 		if res.refusalCode == reasonAlreadyHandled {
@@ -230,14 +238,22 @@ func runManual(a manualAsk, dryRun bool) ingestResponse {
 	return resp
 }
 
-// requesterMayIngest is callerMayIngestAnywhere for a requester whose roles
-// the forwarding bot reported.
-func requesterMayIngest(roles []snowflake.ID) bool {
-	// Not configured: the forwarding bot's own gate on its command is the
-	// only one, as the permission hint is for our commands.
-	if len(manualIngestRoleIDs) == 0 {
-		return true
+// manualGuildIDs are the servers manual requests may archive from, from
+// INGEST_GUILD_IDS. A forwarding bot may sit in other servers too, and a
+// person holding the right roles in one mustn't be able to pull messages from
+// another. Unset: no manual requests at all. A var for the tests.
+var manualGuildIDs = func() map[snowflake.ID]bool {
+	m := map[snowflake.ID]bool{}
+	for _, id := range csvSnowflakeEnv("INGEST_GUILD_IDS", "") {
+		m[id] = true
 	}
+	return m
+}()
+
+// requesterMayIngest is callerMayIngestAnywhere for a requester whose roles
+// the forwarding bot reported. Unlike our commands it fails CLOSED: with no
+// roles configured there is no Discord-side permission hint to fall back on.
+func requesterMayIngest(roles []snowflake.ID) bool {
 	for _, r := range roles {
 		if manualIngestRoleIDs[r] {
 			return true
@@ -285,7 +301,7 @@ func manualPreview(id string, res manualResult, joinSetID string) ingestResponse
 	}
 	preview.Title = previewTitle(m, idolIDs, groupIDs)
 	preview.Items = previewItems(res.items, m.Filetype)
-	resp := ingestResponse{MessageID: id, Status: string(statusIngested), Preview: preview,
+	resp := ingestResponse{MessageID: id, Status: string(statusIngested), Preview: preview, Total: len(res.items),
 		Reply: fmt.Sprintf("Would ingest %d item(s), credited to %s.", len(res.items), m.Uploader)}
 	if rec, err := findUploaderByNames(m.Uploader); err == nil && rec != nil && rec.GetBool("blockIngest") {
 		resp.Status, resp.Reason = string(statusSkipped), reasonBlocked
