@@ -100,16 +100,24 @@ func main() {
 	hooks.OnContentPublished = bot.QueueUploadPost
 	hooks.BotBusy = bot.Busy
 
+	// The bot package's record helpers need the app whether or not our own
+	// Discord bot runs (DISCORD_BOT_ENABLED).
+	bot.Init(app)
+
 	// Start the Discord bot once PocketBase is bootstrapped and serving.
-	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		go func() {
-			log.Println("🤖 Starting Discord bot...")
-			if err := bot.Start(app); err != nil {
-				log.Println("❌ Failed to start Discord bot:", err)
-			}
-		}()
-		return e.Next()
-	})
+	if bot.Enabled() {
+		app.OnServe().BindFunc(func(e *core.ServeEvent) error {
+			go func() {
+				log.Println("🤖 Starting Discord bot...")
+				if err := bot.Start(); err != nil {
+					log.Println("❌ Failed to start Discord bot:", err)
+				}
+			}()
+			return e.Next()
+		})
+	} else {
+		log.Println("ℹ️  Discord bot disabled (DISCORD_BOT_ENABLED=false)")
+	}
 
 	if err := app.Start(); err != nil {
 		log.Fatal(err)

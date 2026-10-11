@@ -5,26 +5,48 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/disgoorg/disgo"
 	disbot "github.com/disgoorg/disgo/bot"
 	"github.com/disgoorg/disgo/gateway"
-	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/core"
 )
 
-// App is the PocketBase app instance, injected by Start. Used by the record
-// helpers (records.go) and the slash commands (commands.go).
-var App *pocketbase.PocketBase
+// App is the PocketBase app instance, injected by Init. Used by the record
+// helpers (records.go), the slash commands (commands.go) and the ingest API.
+var App core.App
+
+// Init hands the package the PocketBase app. Called at boot whether or not the
+// gateway bot runs: the ingest API creates records through the same helpers.
+func Init(app core.App) {
+	App = app
+}
+
+// Enabled reports whether this process should connect its own Discord bot.
+//
+// DISCORD_BOT_ENABLED=false runs the backend without one — for when another
+// bot reads the channels and forwards messages over the ingest API instead
+// (ingest_api.go). Unset means enabled, so existing deploys are unchanged, and
+// turning it back on restores everything: slash commands, the context menu,
+// passive ingestion, AVIF notices and upload announcements. The announcers
+// already do nothing without a client (notify.go, autopost.go).
+func Enabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("DISCORD_BOT_ENABLED"))) {
+	case "false", "0", "off", "no":
+		return false
+	default:
+		return true
+	}
+}
 
 // Client is the disgo client, stored on Start so goroutines outside the event
 // handlers (e.g. the AVIF-ready notifier) can call the Discord REST API.
 var Client *disbot.Client
 
 // Start connects the Discord bot and registers its handlers and slash
-// commands. The PocketBase app is stored for internal database operations.
-func Start(pbApp *pocketbase.PocketBase) error {
-	App = pbApp
-
+// commands. Init must have run first.
+func Start() error {
 	token := os.Getenv("DISCORD_TOKEN")
 	if token == "" {
 		return fmt.Errorf("DISCORD_TOKEN is required")
