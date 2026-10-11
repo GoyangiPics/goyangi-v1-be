@@ -291,15 +291,17 @@ every client there decodes AVIF. Site uploads still choose per-upload.
 An omitted `title:` is derived as `Idols - Groups`, which becomes the heading on
 the content's page and in its social embed.
 
-Multi-item messages create a `contents_sets` record; unknown uploaders and
-tags are created on the fly, while idols/groups must already exist (the bot
-replies with the names it couldn't resolve).
+Every ingested message that isn't joining an existing set gets its own
+`contents_sets` record, single items included (stickers excepted), and a set
+that ends up empty because every item failed is removed. Unknown uploaders and
+tags are created on the fly, while idols/groups must already exist; names that
+don't resolve are logged to `system_logs`.
 
 The reaction on the message says only whether anything was taken —
 `DISCORD_EMOJI_SUCCESS` if it was, nothing at all if it wasn't, `⏭️` if the
 skip was deliberate. A partial run reacts the same as a complete one: what
 failed is a `system_logs` warning for whoever runs the bot, not a mark on the
-poster's message. The reply still lists what didn't resolve.
+poster's message.
 
 Slash commands:
 
@@ -423,25 +425,72 @@ whoever writes it is [docs/ingest-api.md](docs/ingest-api.md).
 - `INGEST_API_TOKEN` turns the routes on, and is the bearer token the other bot
   sends. Comma-separate two to rotate without downtime. Unset means the routes
   don't exist.
+- `INGEST_BOT_USER_IDS` is the forwarding bot's user id (comma-separate several).
+  Set it: requests naming any other `bot_user_id` are refused, and our own bot
+  knows to leave that bot's posts to the API from boot. Unset, any id is
+  accepted and only known once it has forwarded something.
 - `DISCORD_BOT_ENABLED=false` runs the backend without its own bot. Unset means
-  enabled. The two are independent, so both can run at once: a message both
-  sides see is ingested once, and our bot's own posts are never ingested even
-  when the other bot forwards them.
+  enabled. The two are independent, so both can run at once.
 - `DISCORD_ALLOWED_CHANNEL_IDS` must list the forwarded channels, the same as it
   would for our own bot.
 
+How the two doors stay one:
+
+- **One line per channel.** Follow-ups, replies and repeat pings depend on the
+  message before them having finished, so each channel's messages are handled
+  one at a time, in arrival order, whichever door they came through
+  (`queueTurn` in `bot/state.go`).
+- **Both bots are "the bot".** A mention of ours or of a forwarding bot counts
+  as the @-mention trigger and as the "role ping + @-mention = already on the
+  site" skip, through either door. Our bot's id comes from `DISCORD_TOKEN` even
+  while it's disabled. Neither bot's own posts are content; a forwarding bot's
+  posts for other people come with a `relay` block saying whose they are.
+- **Once only.** A message is claimed before anything is saved, and a message
+  whose link is already on a post (`contents.discord`, indexed) is a duplicate,
+  so a message both doors see is archived once.
+- **Relays credit people, not apps.** Follow-ups and replies match on the
+  person credited, and a relay app's post that names nobody (or an anonymous
+  one) never joins another's set. A forwarding bot's own posts for people —
+  anonymous ones included — arrive with a `relay` block naming the person, and
+  are credited to them (posted as the bot, as an interaction response, or
+  through a webhook).
+- **Our gateway never waits on the API.** Its message handler takes the
+  message's place in the channel's line and does the work in a goroutine, so a
+  long forwarded download can't stall slash commands.
+
+"Ingest this message" has a door too: `POST /api/ingest/discord/manual` takes the
+message, who asked (with their roles) and the idols, and runs the same gates
+and pipeline as our context menu and `/reupload` (`manualIngestCore` in
+`bot/reupload.go`): `DISCORD_INGEST_ROLE_IDS`, the upload-permission check,
+credit to the requester, the message's own date. Unlike our commands, it
+refuses a message that's already on the site rather than archiving it twice.
+
+The API answers within 25 seconds or with a 202 to collect later (it's behind
+Cloudflare's 100-second limit); queues at most 200 messages, then answers 503;
+answers 503 while a supervised restart drains; and holds requests to Discord's
+own message limits, with attachments only from Discord's CDN. A request queued
+behind others in its channel gets its 202 within ~3 seconds. `dry_run` makes
+every decision and changes nothing — no records, no claim, no network calls, and
+the bot isn't registered.
+
 What stays with our own bot, and is unavailable while it's off: the slash
 commands, **Ingest this message**, `/reupload`, the AVIF-ready notices and the
-upload announcements.
+upload announcements. If it's off but still in a server, its slash commands
+still show and fail — remove it from servers it won't serve.
 
 Switching over, reversibly:
 
-1. Set `INGEST_API_TOKEN`, add the other server's channels to
-   `DISCORD_ALLOWED_CHANNEL_IDS`, deploy, and give the token to the other bot's
-   developer.
-2. Let both run while the other bot starts forwarding. Nothing doubles.
-3. Remove our bot from that server, or set `DISCORD_BOT_ENABLED=false` if it
-   has nowhere else to be.
+1. Set `INGEST_API_TOKEN` and `INGEST_BOT_USER_IDS`, check
+   `DISCORD_ALLOWED_CHANNEL_IDS` lists the other server's channels (and
+   `DISCORD_INGEST_ROLE_IDS` its archive-on-request roles), deploy, and give the
+   token and the guide to the other bot's developer.
+2. Shadow: they forward with `"dry_run": true` while our bot keeps archiving,
+   and compare. Nothing is saved — except the posts their bot makes for people,
+   which they send for real: our bot leaves those to them.
+3. Switch: they drop `dry_run`, and our bot leaves that server (or
+   `DISCORD_BOT_ENABLED=false` if it has nowhere else to be). An overlap is
+   safe — nothing doubles — but a clean switch is easier to follow.
+4. Tell the server's members which bot to @-mention from now on.
 
 To go back, undo step 3. Our bot takes new messages from then on; anything
 posted while neither side was listening isn't caught up.
