@@ -1738,6 +1738,17 @@
       },
       {
         "hidden": false,
+        "id": "date_birthday_groups_idols",
+        "max": "",
+        "min": "",
+        "name": "birthday",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "date"
+      },
+      {
+        "hidden": false,
         "id": "autodate2990389176",
         "name": "created",
         "onCreate": true,

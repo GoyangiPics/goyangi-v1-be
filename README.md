@@ -502,6 +502,21 @@ Switching over, reversibly:
 To go back, undo step 3. Our bot takes new messages from then on; anything
 posted while neither side was listening isn't caught up.
 
+## Idol birthdays
+
+`groups_idols.birthday` drives the site's birthday announcements; only the
+calendar date is read. [scripts/backfillbirthdays](scripts/backfillbirthdays/main.go)
+fills it from `birthdays.json` next to it, a researched list with a source and a
+confidence per idol. Dry run by default, keyed by id with the name as a guard,
+and it never replaces a date already set by hand unless `-overwrite` is passed:
+
+```
+go run ./scripts/backfillbirthdays -url https://api.goyangi.pics           # report
+go run ./scripts/backfillbirthdays -url https://api.goyangi.pics -commit   # write
+```
+
+New idols get their birthday in the admin UI.
+
 ## Backfilling posts from before the bot
 
 [scripts/backfilldiscord](scripts/backfilldiscord/main.go) archives the posts

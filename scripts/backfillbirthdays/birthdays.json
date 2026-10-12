@@ -1,0 +1,3505 @@
+[
+  {
+    "id": "4j4ovdw69px6u0t",
+    "name": "Giselle",
+    "group": "Aespa",
+    "birthday": "2000-10-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/aespa-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "gh8ia32a489594r",
+    "name": "Karina",
+    "group": "Aespa",
+    "birthday": "2000-04-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/aespa-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "ryg67wy3kq2u28w",
+    "name": "NingNing",
+    "group": "Aespa",
+    "birthday": "2002-10-23",
+    "confidence": "high",
+    "source": "https://kprofiles.com/aespa-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "wl811hb19rw42wa",
+    "name": "Winter",
+    "group": "Aespa",
+    "birthday": "2001-01-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/aespa-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "1linxi52u1jssg9",
+    "name": "Annie",
+    "group": "ALLDAY PROJECT",
+    "birthday": "2002-01-23",
+    "confidence": "high",
+    "source": "https://kprofiles.com/allday-project-members-profile/",
+    "note": "Moon Seoyoon; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "qef8vqd43xlflcq",
+    "name": "Bailey",
+    "group": "ALLDAY PROJECT",
+    "birthday": "2004-02-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/allday-project-members-profile/",
+    "note": "Bailey Sok; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "f4vrywhpf4ahd6w",
+    "name": "Youngseo",
+    "group": "ALLDAY PROJECT",
+    "birthday": "2005-11-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/allday-project-members-profile/",
+    "note": "Lee Youngseo; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "ol3rdqe9azegxoe",
+    "name": "Choerry",
+    "group": "ARTMS",
+    "birthday": "2001-06-04",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9D%B4%EB%8B%AC%EC%9D%98_%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "xjswkqu9q9cu99v",
+    "name": "Haseul",
+    "group": "ARTMS",
+    "birthday": "1997-08-18",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9D%B4%EB%8B%AC%EC%9D%98_%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "k2bczl8hdu02tf5",
+    "name": "Heejin",
+    "group": "ARTMS",
+    "birthday": "2000-10-19",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9D%B4%EB%8B%AC%EC%9D%98_%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "ohvepuh707w1wbi",
+    "name": "Jinsoul",
+    "group": "ARTMS",
+    "birthday": "1997-06-13",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9D%B4%EB%8B%AC%EC%9D%98_%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "vzellisi0ktjkaz",
+    "name": "Kim Lip",
+    "group": "ARTMS",
+    "birthday": "1999-02-10",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9D%B4%EB%8B%AC%EC%9D%98_%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "tva38ci5ptj8qrt",
+    "name": "Arin",
+    "group": "AtHeart",
+    "birthday": "2007-07-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/atheart-members-profile/",
+    "note": "Lee Arin; Generasia agrees"
+  },
+  {
+    "id": "0hdb6iij9cv4r19",
+    "name": "Aurora",
+    "group": "AtHeart",
+    "birthday": "2009-07-04",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Aurora_(AtHeart)",
+    "note": "kprofiles and Generasia agree; consistent with Billboard Nov 2024 'age 15'"
+  },
+  {
+    "id": "0wu9lxng66716j4",
+    "name": "Bome",
+    "group": "AtHeart",
+    "birthday": "2007-11-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/atheart-members-profile/",
+    "note": "Lee Bom; Generasia agrees"
+  },
+  {
+    "id": "eg61t102iqvcufm",
+    "name": "Katelyn",
+    "group": "AtHeart",
+    "birthday": "2007-07-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/atheart-members-profile/",
+    "note": "Katelyn Angela Ejercito Tan; Generasia and MyDramaList agree"
+  },
+  {
+    "id": "xgo0krzwtnusgug",
+    "name": "Michi",
+    "group": "AtHeart",
+    "birthday": "2007-05-06",
+    "confidence": "high",
+    "source": "https://kprofiles.com/michi-atheart-profile-and-facts/",
+    "note": "kprofiles and Generasia agree on date (birth name differs: Yorkston vs Fujiwara)"
+  },
+  {
+    "id": "8htjc3zmeqfedxi",
+    "name": "Nahyun",
+    "group": "AtHeart",
+    "birthday": "2009-09-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/atheart-members-profile/",
+    "note": "Kim Nahyun; Generasia profile agrees (its category tag says 2007 births, apparently an error)"
+  },
+  {
+    "id": "aysk28zll602gkn",
+    "name": "Seohyeon",
+    "group": "AtHeart",
+    "birthday": "2008-09-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/atheart-members-profile/",
+    "note": "Moon Seohyeon; Generasia agrees"
+  },
+  {
+    "id": "ywel521es0j8jun",
+    "name": "Beni",
+    "group": "Baby DONT Cry",
+    "birthday": "2008-12-23",
+    "confidence": "high",
+    "source": "https://kprofiles.com/baby-dont-cry-members-profile/",
+    "note": "Kang Han-bit; Generasia and kbizoom agree"
+  },
+  {
+    "id": "1wv9whszbisi2ns",
+    "name": "Kumi",
+    "group": "Baby DONT Cry",
+    "birthday": "2007-08-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/baby-dont-cry-members-profile/",
+    "note": "Takei Miku; kprofiles and kbizoom agree (both fan sites)"
+  },
+  {
+    "id": "w878qxj6wgf13kr",
+    "name": "Mia",
+    "group": "Baby DONT Cry",
+    "birthday": "2007-09-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/baby-dont-cry-members-profile/",
+    "note": "Kunii Hinano; kbizoom, MyDramaList agree"
+  },
+  {
+    "id": "2x6pcjwayjc8uue",
+    "name": "Yihyun",
+    "group": "Baby DONT Cry",
+    "birthday": "2006-04-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/baby-dont-cry-members-profile/",
+    "note": "Jo Yi-hyun; Generasia and kbizoom agree"
+  },
+  {
+    "id": "xqtvssel51id1u0",
+    "name": "Ahyeon",
+    "group": "BABYMONSTER",
+    "birthday": "2007-04-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "megr9r2k8o0x0p0",
+    "name": "Asa",
+    "group": "BABYMONSTER",
+    "birthday": "2006-04-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "w8rtfzds4f9qs84",
+    "name": "Chiquita",
+    "group": "BABYMONSTER",
+    "birthday": "2009-02-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "dj8uci9hu1pg7fo",
+    "name": "Pharita",
+    "group": "BABYMONSTER",
+    "birthday": "2005-08-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "1phaly1oixbcapp",
+    "name": "Rami",
+    "group": "BABYMONSTER",
+    "birthday": "2007-10-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "39olp6m8a24zz0v",
+    "name": "Rora",
+    "group": "BABYMONSTER",
+    "birthday": "2008-08-14",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles, ja.wikipedia, MyDramaList agree; generasia is an outlier listing 2008-08-05"
+  },
+  {
+    "id": "spdlphj6eu0hgi6",
+    "name": "Ruka",
+    "group": "BABYMONSTER",
+    "birthday": "2002-03-20",
+    "confidence": "high",
+    "source": "https://kprofiles.com/babymonster-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "6sawo7m76dipfnr",
+    "name": "Chloe Young",
+    "group": "BADVILLAIN",
+    "birthday": "2001-10-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "1fw8sd2zk4dbta0",
+    "name": "Emma",
+    "group": "BADVILLAIN",
+    "birthday": "2000-04-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "4e6o2c7ap8gke4d",
+    "name": "HU'E",
+    "group": "BADVILLAIN",
+    "birthday": "2003-11-20",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "b49pzrr8684r30x",
+    "name": "INA",
+    "group": "BADVILLAIN",
+    "birthday": "2004-06-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "v5kfdwrwgr66qx3",
+    "name": "Kelly",
+    "group": "BADVILLAIN",
+    "birthday": "2006-06-16",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "s55h9q98ytanv9f",
+    "name": "Vin",
+    "group": "BADVILLAIN",
+    "birthday": "2004-11-27",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "rven4jnq3h90zsk",
+    "name": "YunSeo",
+    "group": "BADVILLAIN",
+    "birthday": "2004-07-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/badvillain-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "cq47hdg0tzxqsuo",
+    "name": "Haram",
+    "group": "Billlie",
+    "birthday": "2001-01-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "uuci4hwzov49mlm",
+    "name": "Haruna",
+    "group": "Billlie",
+    "birthday": "2006-01-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "7zykjqijkawfcnr",
+    "name": "Moon Sua",
+    "group": "Billlie",
+    "birthday": "1999-09-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "hetssyy0u14u7jc",
+    "name": "Sheon",
+    "group": "Billlie",
+    "birthday": "2003-01-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "m0ffjyyj6p1rrof",
+    "name": "Siyoon",
+    "group": "Billlie",
+    "birthday": "2005-02-16",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "okkzvc8cpra21n4",
+    "name": "Suhyeon",
+    "group": "Billlie",
+    "birthday": "2000-01-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "wjozhunr9md6ge6",
+    "name": "Tsuki",
+    "group": "Billlie",
+    "birthday": "2002-09-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/billlie-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "d8qms5vmmhebqh0",
+    "name": "Jennie",
+    "group": "BLACKPINK",
+    "birthday": "1996-01-16",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/블랙핑크",
+    "note": "Kim Jennie; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "1rhou6ewjvzpayb",
+    "name": "Jisoo",
+    "group": "BLACKPINK",
+    "birthday": "1995-01-03",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/블랙핑크",
+    "note": "Kim Ji-soo; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "z2rogunf8us4wfe",
+    "name": "Lisa",
+    "group": "BLACKPINK",
+    "birthday": "1997-03-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/블랙핑크",
+    "note": "Lalisa Manobal; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "yf19orzdg7chooc",
+    "name": "Rose",
+    "group": "BLACKPINK",
+    "birthday": "1997-02-11",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/블랙핑크",
+    "note": "Rose (Roseanne Park / Park Chae-young); ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "ak1xfxvpieg2fwf",
+    "name": "Julia",
+    "group": "Candy Shop",
+    "birthday": "2008-03-10",
+    "confidence": "high",
+    "source": "https://kprofiles.com/candy-shop-members-profile/",
+    "note": "kprofiles + kpopping agree; no encyclopedic source found."
+  },
+  {
+    "id": "oltakjmhtvc5svd",
+    "name": "Sarang",
+    "group": "Candy Shop",
+    "birthday": "2007-11-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/candy-shop-members-profile/",
+    "note": "kprofiles + kpopping agree; no encyclopedic source found."
+  },
+  {
+    "id": "5ywfx2qbh66z4wk",
+    "name": "Soram",
+    "group": "Candy Shop",
+    "birthday": "2005-09-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/candy-shop-members-profile/",
+    "note": "kprofiles + kpopping agree; no encyclopedic source found."
+  },
+  {
+    "id": "flgaxqkgz6t23s1",
+    "name": "Sui",
+    "group": "Candy Shop",
+    "birthday": "2007-08-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/candy-shop-members-profile/",
+    "note": "kprofiles + kpopping agree; no encyclopedic source found."
+  },
+  {
+    "id": "ctm7sq0epr0w8oe",
+    "name": "Jeewon",
+    "group": "CIGNATURE",
+    "birthday": "1999-04-01",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/ZZONE",
+    "note": "English Wikipedia (ZZONE) + kprofiles CIGNATURE profile agree; Kim Ji-won; Cignature disbanded Dec 2024, now in ZZONE"
+  },
+  {
+    "id": "od9jdfydr5k5fm8",
+    "name": "Boeun",
+    "group": "CLASS:y",
+    "birthday": "2008-02-11",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/클라씨",
+    "note": "Park Bo-eun; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "wneci1bq20stbad",
+    "name": "Chaewon",
+    "group": "CLASS:y",
+    "birthday": "2003-06-04",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/클라씨",
+    "note": "Yoon Chae-won; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "qodxl3bco2tyenw",
+    "name": "Hyungseo",
+    "group": "CLASS:y",
+    "birthday": "2001-06-25",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/클라씨",
+    "note": "Myung Hyung-seo; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "6xo6c57ilz84ubd",
+    "name": "Jimin",
+    "group": "CLASS:y",
+    "birthday": "2007-11-25",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/클라씨",
+    "note": "Won Ji-min; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "uyykfi9xmnlizh9",
+    "name": "Riwon",
+    "group": "CLASS:y",
+    "birthday": "2007-01-11",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/클라씨",
+    "note": "Kim Ri-won; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "mhadwoxv01f85t8",
+    "name": "Seonyou",
+    "group": "CLASS:y",
+    "birthday": "2008-03-20",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/클라씨",
+    "note": "Kim Seon-you; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "9nic7ffkghq9s4x",
+    "name": "Duna",
+    "group": "CSR",
+    "birthday": "2005-04-28",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Duna_(CSR)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "0dmb08fr6gtjdxm",
+    "name": "Geumhee",
+    "group": "CSR",
+    "birthday": "2005-03-04",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Geumhee",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "fgbswp5ch9tysj3",
+    "name": "Seoyeon",
+    "group": "CSR",
+    "birthday": "2005-03-26",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Seoyeon_(CSR)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "rxf0kqdefjbqeu0",
+    "name": "Sihyeon",
+    "group": "CSR",
+    "birthday": "2005-03-12",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Sihyeon_(CSR)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "6jgl9uv5oh5hb78",
+    "name": "Sua",
+    "group": "CSR",
+    "birthday": "2005-07-23",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Sua_(CSR)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "4o6bahmd92v8qhw",
+    "name": "Yeham",
+    "group": "CSR",
+    "birthday": "2005-10-07",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Yeham",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "nwvovliq7k5sv2u",
+    "name": "Yuna",
+    "group": "CSR",
+    "birthday": "2005-04-23",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Yuna_(CSR)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/csr-members-profile/) agree"
+  },
+  {
+    "id": "81ahubn9u7stogl",
+    "name": "Dami",
+    "group": "Dreamcatcher",
+    "birthday": "1997-03-07",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Lee Yu-bin; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "48ae6hwijryvg0f",
+    "name": "Gahyun",
+    "group": "Dreamcatcher",
+    "birthday": "1999-02-03",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Lee Ga-hyun; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "voqf3eunnob1gur",
+    "name": "Handong",
+    "group": "Dreamcatcher",
+    "birthday": "1996-03-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Han Dong; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "bn0pzw7ccjtabtz",
+    "name": "Jiu",
+    "group": "Dreamcatcher",
+    "birthday": "1994-05-17",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Kim Min-ji; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "f71d698s1lqn3gx",
+    "name": "Siyeon",
+    "group": "Dreamcatcher",
+    "birthday": "1995-10-01",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Lee Si-yeon; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "f2zcmx8uozo6a9e",
+    "name": "SuA",
+    "group": "Dreamcatcher",
+    "birthday": "1994-08-10",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Kim Bo-ra; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "pxz7y52ogsp6bnm",
+    "name": "Yoohyeon",
+    "group": "Dreamcatcher",
+    "birthday": "1997-01-07",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/드림캐쳐_(음악_그룹)",
+    "note": "Kim Yoo-hyeon; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "ubmplmeo5m7htal",
+    "name": "Aisha",
+    "group": "EVERGLOW",
+    "birthday": "2000-07-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/everglow-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "hc9001ilwif6lhl",
+    "name": "EU",
+    "group": "EVERGLOW",
+    "birthday": "1998-05-19",
+    "confidence": "high",
+    "source": "https://kprofiles.com/everglow-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "4qaebnd81w7tg5v",
+    "name": "Mia",
+    "group": "EVERGLOW",
+    "birthday": "2000-01-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/everglow-members-profile/",
+    "note": "former member; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "oycsz5xktp7d3vn",
+    "name": "Onda",
+    "group": "EVERGLOW",
+    "birthday": "2000-05-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/everglow-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "hd1jck03wwksnnj",
+    "name": "Sihyeon",
+    "group": "EVERGLOW",
+    "birthday": "1999-08-05",
+    "confidence": "high",
+    "source": "https://kprofiles.com/everglow-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "wdx0muhxv0gl7mi",
+    "name": "Yiren",
+    "group": "EVERGLOW",
+    "birthday": "2000-12-29",
+    "confidence": "high",
+    "source": "https://kprofiles.com/everglow-members-profile/",
+    "note": "former member; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "wu3u3a2mz7adndg",
+    "name": "Athena",
+    "group": "FIFTY FIFTY",
+    "birthday": "2007-03-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fifty-fifty-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "5yjr4h6g59fqdvo",
+    "name": "Chanelle",
+    "group": "FIFTY FIFTY",
+    "birthday": "2003-06-14",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fifty-fifty-members-profile/",
+    "note": "Moon Chanelle; kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "ioy5m4xpsdx527t",
+    "name": "Hana",
+    "group": "FIFTY FIFTY",
+    "birthday": "2006-09-05",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fifty-fifty-members-profile/",
+    "note": "Current (second-lineup) member Hana; kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "lg3z749rpmzmdh8",
+    "name": "Keena",
+    "group": "FIFTY FIFTY",
+    "birthday": "2002-07-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fifty-fifty-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "ek9n30cntxr6bkj",
+    "name": "Yewon",
+    "group": "FIFTY FIFTY",
+    "birthday": "2005-03-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fifty-fifty-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "tqeuzws3rraoqxh",
+    "name": "Chaeyoung",
+    "group": "fromis_9",
+    "birthday": "2000-05-14",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Lee Chae-young; Generasia agrees"
+  },
+  {
+    "id": "nkqyf6vdkd5csdk",
+    "name": "Hayoung",
+    "group": "fromis_9",
+    "birthday": "1997-09-29",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Song Ha-young; fan wiki/profile pages agree"
+  },
+  {
+    "id": "30q0hbih5axaoqt",
+    "name": "Jiheon",
+    "group": "fromis_9",
+    "birthday": "2003-04-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Baek Ji-heon"
+  },
+  {
+    "id": "fl4slsba0fpfalc",
+    "name": "Jisun",
+    "group": "fromis_9",
+    "birthday": "1998-11-23",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Roh Ji-sun; former member (left 2025)"
+  },
+  {
+    "id": "hrqa85fzrsy2phk",
+    "name": "Jiwon",
+    "group": "fromis_9",
+    "birthday": "1998-03-20",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Park_Ji_Won",
+    "note": "Park Ji-won; kprofiles, Generasia, MyDramaList agree"
+  },
+  {
+    "id": "hgo3ke0uro67qhr",
+    "name": "Nagyung",
+    "group": "fromis_9",
+    "birthday": "2000-06-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Lee Na-gyung"
+  },
+  {
+    "id": "3kan2pmszo8wpsw",
+    "name": "Saerom",
+    "group": "fromis_9",
+    "birthday": "1997-01-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Lee Sae-rom; former member (left 2025)"
+  },
+  {
+    "id": "q4g4nrv4pkgmkqk",
+    "name": "Seoyeon",
+    "group": "fromis_9",
+    "birthday": "2000-01-22",
+    "confidence": "high",
+    "source": "https://kprofiles.com/fromis_9-members-profile/",
+    "note": "Lee Seo-yeon (also Y:SY); former member (left 2025)"
+  },
+  {
+    "id": "3vssq1gis1k5qvz",
+    "name": "Andamiro",
+    "group": "Geenius",
+    "birthday": "2003-05-06",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=228292",
+    "note": "Yeon Seung-ju; kprofiles + kpopping agree"
+  },
+  {
+    "id": "oes2ru1mwghabjh",
+    "name": "Mika",
+    "group": "Geenius",
+    "birthday": "2002-01-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=228292",
+    "note": "Yu (Ryu) Da-hyun; kprofiles + kpopping agree"
+  },
+  {
+    "id": "5wg6q0frdy2reid",
+    "name": "Sion",
+    "group": "Geenius",
+    "birthday": "2001-03-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=228292",
+    "note": "Ryu Si-on; kprofiles + kpopping agree"
+  },
+  {
+    "id": "xu0kxqroiwezb8r",
+    "name": "Yeyoung",
+    "group": "Geenius",
+    "birthday": "2000-05-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=228292",
+    "note": "Choi Ye-young; kprofiles + kpopping agree"
+  },
+  {
+    "id": "jlku1z4uy0mt74p",
+    "name": "Zoe",
+    "group": "Geenius",
+    "birthday": "2002-04-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=228292",
+    "note": "Choi Gloria (Choi Ha-young); kprofiles + kpopping agree"
+  },
+  {
+    "id": "oeoreiobrxerdfy",
+    "name": "Coco",
+    "group": "H//PE",
+    "birthday": "2004-09-02",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=565376",
+    "note": "Group is H//PE Princess; Akiyama Coco; Generasia and UtaTen agree"
+  },
+  {
+    "id": "r9cap59v61eakc8",
+    "name": "Doi",
+    "group": "H//PE",
+    "birthday": "2008-10-21",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Kim_Doyi",
+    "note": "H//PE Princess; Kim Doyi; kprofiles agrees"
+  },
+  {
+    "id": "ffli9xptzs8iszn",
+    "name": "Niko",
+    "group": "H//PE",
+    "birthday": "2008-11-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=565376",
+    "note": "H//PE Princess; Yamamura Niko; Sina, TheTVDB, UtaTen agree"
+  },
+  {
+    "id": "pm5kc7qn4pfbnqh",
+    "name": "Rino",
+    "group": "H//PE",
+    "birthday": "2008-11-03",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/?p=565376",
+    "note": "H//PE Princess; Terazono Rino. Conflict: kprofiles, TheTVDB and UtaTen (Nov 3) vs Generasia (Nov 13, 2008); went with majority"
+  },
+  {
+    "id": "lgwtub07if0t2mk",
+    "name": "Sujin",
+    "group": "H//PE",
+    "birthday": "2009-12-18",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Kim_Sujin_(H//PE_Princess)",
+    "note": "H//PE Princess; Kim Sujin; kprofiles agrees"
+  },
+  {
+    "id": "wppc9ee8pck2h3h",
+    "name": "YSY",
+    "group": "H//PE",
+    "birthday": "2007-05-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=565376",
+    "note": "H//PE Princess; Yun Seo-young; TheTVDB agrees. Not to be confused with fromis_9 Seoyeon (Y:SY)"
+  },
+  {
+    "id": "sgxgpgr2xcksght",
+    "name": "Yuju",
+    "group": "H//PE",
+    "birthday": "2007-07-28",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Nam_Yuju",
+    "note": "H//PE Princess; Nam Yuju; kprofiles, TheTVDB agree"
+  },
+  {
+    "id": "2l774ynr1dtsygm",
+    "name": "Hwiseo",
+    "group": "H1-KEY",
+    "birthday": "2002-07-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=237668",
+    "note": "Jo Hwi-hyeon; H1-KEY fan guide agrees"
+  },
+  {
+    "id": "1mdfvskix5kletb",
+    "name": "Riina",
+    "group": "H1-KEY",
+    "birthday": "2001-02-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=237668",
+    "note": "Lee Seung-hyun; H1-KEY fan guide agrees"
+  },
+  {
+    "id": "6gt6buyu7d69a8k",
+    "name": "Seoi",
+    "group": "H1-KEY",
+    "birthday": "2000-02-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=237668",
+    "note": "Lee Ye-jin; H1-KEY fan guide agrees"
+  },
+  {
+    "id": "xdrin264aw42bhn",
+    "name": "Yel",
+    "group": "H1-KEY",
+    "birthday": "2004-12-25",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=237668",
+    "note": "Han Shin-young; H1-KEY fan guide agrees"
+  },
+  {
+    "id": "s5zh5nja1egj0f8",
+    "name": "Ayne",
+    "group": "HEART OF WOMAN",
+    "birthday": "2005-08-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/heart-of-woman-members-profile/",
+    "note": "Confirmed by kprofiles group and individual pages and kpopping."
+  },
+  {
+    "id": "tbgbntcrwrtay0r",
+    "name": "Chaei",
+    "group": "HEART OF WOMAN",
+    "birthday": "2005-07-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/heart-of-woman-members-profile/",
+    "note": "Confirmed by kprofiles group and individual pages and kpopping."
+  },
+  {
+    "id": "92w0orkalt60tpf",
+    "name": "Ji Hyun",
+    "group": "HEART OF WOMAN",
+    "birthday": "2004-11-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/heart-of-woman-members-profile/",
+    "note": "Confirmed by kprofiles group and individual pages and kpopping."
+  },
+  {
+    "id": "291auiutonu5hp3",
+    "name": "Liri",
+    "group": "HEART OF WOMAN",
+    "birthday": "2007-02-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/heart-of-woman-members-profile/",
+    "note": "Confirmed by kprofiles group and individual pages and kpopping."
+  },
+  {
+    "id": "lf0rkjxhg6q8cmx",
+    "name": "Liuyin",
+    "group": "HEART OF WOMAN",
+    "birthday": "2007-11-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/heart-of-woman-members-profile/",
+    "note": "Confirmed by kprofiles group and individual pages and kpopping."
+  },
+  {
+    "id": "yugpk2g2n1v3qbj",
+    "name": "A-na",
+    "group": "Hearts2Hearts",
+    "birthday": "2008-12-20",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "wme2ktftq3swh9g",
+    "name": "Carmen",
+    "group": "Hearts2Hearts",
+    "birthday": "2006-03-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "4ghwlaiuj1nie3a",
+    "name": "Ian",
+    "group": "Hearts2Hearts",
+    "birthday": "2009-10-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "f1lmoxeux0v8p7c",
+    "name": "Jiwoo",
+    "group": "Hearts2Hearts",
+    "birthday": "2006-09-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "zehk1y8qxn9425l",
+    "name": "Juun",
+    "group": "Hearts2Hearts",
+    "birthday": "2008-12-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "culyvypab75qpdr",
+    "name": "Stella",
+    "group": "Hearts2Hearts",
+    "birthday": "2007-06-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "menubqh9vk3u6ab",
+    "name": "Ye-on",
+    "group": "Hearts2Hearts",
+    "birthday": "2010-04-19",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "cs06u42tvqeiy6t",
+    "name": "Yuha",
+    "group": "Hearts2Hearts",
+    "birthday": "2007-04-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/hearts2hearts-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "4272ny5096c61r5",
+    "name": "Hyerin",
+    "group": "HITGS",
+    "birthday": "2009-12-10",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Hyerin_(HITGS)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/?p=504780) agree"
+  },
+  {
+    "id": "1vqlmzuv80v6ear",
+    "name": "Iyoo",
+    "group": "HITGS",
+    "birthday": "2010-03-26",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Iyoo",
+    "note": "Generasia and kprofiles (https://kprofiles.com/?p=504780) agree; a Listal user tag suggests April 2010, not considered reliable"
+  },
+  {
+    "id": "budgo2hvuc7pdr0",
+    "name": "Seohee",
+    "group": "HITGS",
+    "birthday": "2009-05-11",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Seohee",
+    "note": "Generasia and kprofiles (https://kprofiles.com/?p=504780) agree"
+  },
+  {
+    "id": "2aqhuqel0zee9pn",
+    "name": "Seojin",
+    "group": "HITGS",
+    "birthday": "2008-04-16",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Seojin_(HITGS)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/?p=504780) agree"
+  },
+  {
+    "id": "10w2m8o7mwjyfac",
+    "name": "VV",
+    "group": "HITGS",
+    "birthday": "2006-06-03",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/VV",
+    "note": "Generasia and kprofiles (https://kprofiles.com/?p=504780) agree"
+  },
+  {
+    "id": "73ovohlpruufixh",
+    "name": "Minnie",
+    "group": "i-dle",
+    "birthday": "1997-10-23",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/아이들_(음악_그룹)",
+    "note": "Korean Wikipedia + delivered.co.kr profile agree"
+  },
+  {
+    "id": "1hh8gpj11twbugp",
+    "name": "Miyeon",
+    "group": "i-dle",
+    "birthday": "1997-01-31",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/아이들_(음악_그룹)",
+    "note": "Korean Wikipedia + delivered.co.kr profile agree"
+  },
+  {
+    "id": "wftfqcjqmj0u1qk",
+    "name": "Shuhua",
+    "group": "i-dle",
+    "birthday": "2000-01-06",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/아이들_(음악_그룹)",
+    "note": "Korean Wikipedia + delivered.co.kr profile agree"
+  },
+  {
+    "id": "li2k1jrqcu5vjtj",
+    "name": "Soyeon",
+    "group": "i-dle",
+    "birthday": "1998-08-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/아이들_(음악_그룹)",
+    "note": "Korean Wikipedia + delivered.co.kr profile agree"
+  },
+  {
+    "id": "coh8sc064xptpaw",
+    "name": "Yuqi",
+    "group": "i-dle",
+    "birthday": "1999-09-23",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/아이들_(음악_그룹)",
+    "note": "Korean Wikipedia + delivered.co.kr profile agree"
+  },
+  {
+    "id": "vcs361y3iv19h22",
+    "name": "Chaerin",
+    "group": "ICHILLIN",
+    "birthday": "2003-03-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "5tst1qyi4rz0l23",
+    "name": "Chowon",
+    "group": "ICHILLIN",
+    "birthday": "2005-08-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "Kim Chowon (not LIGHTSUM's Chowon); kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "y6jq74uummz29qi",
+    "name": "E.Ji",
+    "group": "ICHILLIN",
+    "birthday": "2000-11-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "98fpkz78d92d3ol",
+    "name": "Jackie",
+    "group": "ICHILLIN",
+    "birthday": "2001-11-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "gq3h0qb96rdayui",
+    "name": "Jiyoon",
+    "group": "ICHILLIN",
+    "birthday": "2000-09-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "kzpgmekr0vrsovw",
+    "name": "Joonie",
+    "group": "ICHILLIN",
+    "birthday": "2002-05-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "xbww918nwl2jkl1",
+    "name": "Yeju",
+    "group": "ICHILLIN",
+    "birthday": "2004-09-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ichillin-members-profile/",
+    "note": "kprofiles + thekmeal.com agree"
+  },
+  {
+    "id": "kxu7dgtizrlxxyy",
+    "name": "Kasia",
+    "group": "ifeye",
+    "birthday": "2008-02-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=433826",
+    "note": "Lee Ga-yeon; Generasia agrees"
+  },
+  {
+    "id": "jwhw6hie8ynth82",
+    "name": "Meu",
+    "group": "ifeye",
+    "birthday": "2008-06-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=433826",
+    "note": "Lee Chae-won; Generasia, Namuwiki (via search) agree"
+  },
+  {
+    "id": "6ba73umalpt0gi0",
+    "name": "Rahee",
+    "group": "ifeye",
+    "birthday": "2007-12-06",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/?p=433826",
+    "note": "Kim Ra-hee. Year conflict: kprofiles and MyDramaList say 2007 (consistent with TenAsia/Starnews reports of her taking the Nov 2025 suneung as a 2007-born senior); Generasia says 2006-12-06"
+  },
+  {
+    "id": "83rydv7l7rk3d7a",
+    "name": "Sasha",
+    "group": "ifeye",
+    "birthday": "2009-05-20",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Seoyul_(ifeye)",
+    "note": "Jeong Seo-yul; kprofiles agrees"
+  },
+  {
+    "id": "yu0hn5lt4rtnvyu",
+    "name": "Taerin",
+    "group": "ifeye",
+    "birthday": "2006-07-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=433826",
+    "note": "Choi Ji-woo; Generasia and MyDramaList agree"
+  },
+  {
+    "id": "urf2hjejyftqyrk",
+    "name": "Won Hwayeon",
+    "group": "ifeye",
+    "birthday": "2006-06-24",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Won_Hwayeon",
+    "note": "kprofiles agrees"
+  },
+  {
+    "id": "aosrslb91qzny1o",
+    "name": "Iroha",
+    "group": "ILLIT",
+    "birthday": "2008-02-04",
+    "confidence": "high",
+    "source": "https://kprofiles.com/illit-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "3wfbxzzbys0i9cn",
+    "name": "Minju",
+    "group": "ILLIT",
+    "birthday": "2004-05-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/illit-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "f4h0iurijt8zqfx",
+    "name": "Moka",
+    "group": "ILLIT",
+    "birthday": "2004-10-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/illit-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "ic6uzamzi7ortf8",
+    "name": "Wonhee",
+    "group": "ILLIT",
+    "birthday": "2007-06-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/illit-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "rouur5rzhurodfe",
+    "name": "Yunah",
+    "group": "ILLIT",
+    "birthday": "2004-01-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/illit-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "im2adf7elzp7iul",
+    "name": "Chaeryeong",
+    "group": "ITZY",
+    "birthday": "2001-06-05",
+    "confidence": "high",
+    "source": "https://kprofiles.com/itzy-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "sntw7tenz3ooha1",
+    "name": "Lia",
+    "group": "ITZY",
+    "birthday": "2000-07-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/itzy-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "1tvfraoacqy01pc",
+    "name": "Ryujin",
+    "group": "ITZY",
+    "birthday": "2001-04-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/itzy-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "3l1ol7saydotvv8",
+    "name": "Yeji",
+    "group": "ITZY",
+    "birthday": "2000-05-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/itzy-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "7q2lzzki3pavt7k",
+    "name": "Yuna",
+    "group": "ITZY",
+    "birthday": "2003-12-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/itzy-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "tu7oedjqzzy3cdn",
+    "name": "Gaeul",
+    "group": "IVE",
+    "birthday": "2002-09-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ive-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "8mihmedahm6zzvl",
+    "name": "Leeseo",
+    "group": "IVE",
+    "birthday": "2007-02-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ive-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "2a58kxv91aifl69",
+    "name": "Liz",
+    "group": "IVE",
+    "birthday": "2004-11-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ive-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "nas6vlt32t394lv",
+    "name": "Rei",
+    "group": "IVE",
+    "birthday": "2004-02-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ive-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "dzoun1i7t3rftz2",
+    "name": "Wonyoung",
+    "group": "IVE",
+    "birthday": "2004-08-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ive-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "vw825cy95p1hxxr",
+    "name": "Yujin",
+    "group": "IVE",
+    "birthday": "2003-09-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/ive-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "qfcfp9pqgjf6o5q",
+    "name": "Jeemin",
+    "group": "izna",
+    "birthday": "2005-05-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/izna-members-profile/",
+    "note": "Bang Jeemin; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "sb4izullhkjk2k3",
+    "name": "Jungeun",
+    "group": "izna",
+    "birthday": "2007-08-04",
+    "confidence": "high",
+    "source": "https://kprofiles.com/izna-members-profile/",
+    "note": "Choi Jungeun; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "vgz8yhhrkeyrirt",
+    "name": "Koko",
+    "group": "izna",
+    "birthday": "2006-11-14",
+    "confidence": "high",
+    "source": "https://kprofiles.com/izna-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "khxtrrc3ne1ws66",
+    "name": "Mai",
+    "group": "izna",
+    "birthday": "2004-10-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/izna-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "61kjl0xxgt7okeo",
+    "name": "Saebi",
+    "group": "izna",
+    "birthday": "2008-01-22",
+    "confidence": "high",
+    "source": "https://kprofiles.com/izna-members-profile/",
+    "note": "Jeong Saebi; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "ke28ks8qep39yid",
+    "name": "Sarang",
+    "group": "izna",
+    "birthday": "2007-04-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/izna-members-profile/",
+    "note": "Ryu Sarang; kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "k73s1kcesnwyv71",
+    "name": "Chaeyeon",
+    "group": "IZONE",
+    "birthday": "2000-01-11",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Lee_Chae-yeon",
+    "note": "Lee Chae-yeon; en.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "2zjdgsl67e465an",
+    "name": "Bahiyyih",
+    "group": "Kep1er",
+    "birthday": "2004-07-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "h0z7f03jwi3vgyx",
+    "name": "Chaehyun",
+    "group": "Kep1er",
+    "birthday": "2002-04-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "4g95htw5fmx8dgi",
+    "name": "Dayeon",
+    "group": "Kep1er",
+    "birthday": "2003-03-02",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "vqdvqjb5lz3fbyn",
+    "name": "Hikaru",
+    "group": "Kep1er",
+    "birthday": "2004-03-12",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "lhp1ta3ab1k3qwa",
+    "name": "Xiaoting",
+    "group": "Kep1er",
+    "birthday": "1999-11-12",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "zjvbzsuifpr1vqq",
+    "name": "Youngeun",
+    "group": "Kep1er",
+    "birthday": "2004-12-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree (Youngeun listed as former member)"
+  },
+  {
+    "id": "6dj9esdkpfdvik5",
+    "name": "Yujin",
+    "group": "Kep1er",
+    "birthday": "1996-08-12",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/케플러_(음악_그룹)",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "7po8ud68mj18pr9",
+    "name": "Kang Yeseul",
+    "group": "Keyveatz",
+    "birthday": "2006-10-15",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/키비츠",
+    "note": "kprofiles + ko.wikipedia + Weblio agree"
+  },
+  {
+    "id": "1c5c7nmeusjhqlt",
+    "name": "Kim Yuna",
+    "group": "Keyveatz",
+    "birthday": "2008-08-13",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/키비츠",
+    "note": "kprofiles + ko.wikipedia + Weblio agree"
+  },
+  {
+    "id": "usmgyz8ljgfl76k",
+    "name": "Newy",
+    "group": "Keyveatz",
+    "birthday": "2007-09-16",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/키비츠",
+    "note": "Hamaue Yui; kprofiles + ko.wikipedia + Weblio agree"
+  },
+  {
+    "id": "qlzpoltncc21ksp",
+    "name": "Son Juone",
+    "group": "Keyveatz",
+    "birthday": "2006-09-16",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/키비츠",
+    "note": "kprofiles + ko.wikipedia + Weblio agree"
+  },
+  {
+    "id": "didte13so36hb3l",
+    "name": "Um Jione",
+    "group": "Keyveatz",
+    "birthday": "2009-09-21",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/키비츠",
+    "note": "kprofiles + ko.wikipedia + Weblio agree"
+  },
+  {
+    "id": "ndca1elprff0miz",
+    "name": "Haum",
+    "group": "KiiiKiii",
+    "birthday": "2006-11-14",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Haum",
+    "note": "Generasia and kprofiles (https://kprofiles.com/kiiikiii-members-profile/) agree"
+  },
+  {
+    "id": "r9yx0io1udptvo6",
+    "name": "Jiyu",
+    "group": "KiiiKiii",
+    "birthday": "2006-05-14",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Jiyu_(KiiiKiii)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/kiiikiii-members-profile/) agree"
+  },
+  {
+    "id": "90y8u1715zsccgj",
+    "name": "Kya",
+    "group": "KiiiKiii",
+    "birthday": "2010-12-18",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Kya",
+    "note": "Generasia and kprofiles (https://kprofiles.com/kiiikiii-members-profile/) agree"
+  },
+  {
+    "id": "wqzd7li7f257b1b",
+    "name": "Leesol",
+    "group": "KiiiKiii",
+    "birthday": "2005-09-18",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Leesol",
+    "note": "Generasia and kprofiles (https://kprofiles.com/kiiikiii-members-profile/) agree"
+  },
+  {
+    "id": "vtxvj080uttnr2g",
+    "name": "Sui",
+    "group": "KiiiKiii",
+    "birthday": "2006-04-10",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Sui_(KiiiKiii)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/kiiikiii-members-profile/) agree"
+  },
+  {
+    "id": "7m350xubetrrz96",
+    "name": "Doyeon",
+    "group": "KIIRAS",
+    "birthday": "2009-12-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiiras-members-profile/",
+    "note": "Confirmed by kprofiles, kpopping and generasia."
+  },
+  {
+    "id": "bhhvyu4ge2iip7r",
+    "name": "Harin",
+    "group": "KIIRAS",
+    "birthday": "2008-01-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiiras-members-profile/",
+    "note": "Confirmed by kprofiles, kpopping and generasia."
+  },
+  {
+    "id": "s50wywa73bfipxk",
+    "name": "Kurumi",
+    "group": "KIIRAS",
+    "birthday": "2006-06-20",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiiras-members-profile/",
+    "note": "Confirmed by kprofiles, kpopping and generasia."
+  },
+  {
+    "id": "ipib8e4iulwqyxu",
+    "name": "Kylie",
+    "group": "KIIRAS",
+    "birthday": "2008-05-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiiras-members-profile/",
+    "note": "Confirmed by kprofiles, kpopping and generasia."
+  },
+  {
+    "id": "d78rl5ahgamdlwh",
+    "name": "Lingling",
+    "group": "KIIRAS",
+    "birthday": "2005-04-20",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiiras-members-profile/",
+    "note": "Confirmed by kprofiles, kpopping and generasia."
+  },
+  {
+    "id": "dqze567zydbvmqp",
+    "name": "Roah",
+    "group": "KIIRAS",
+    "birthday": "2011-10-16",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiiras-members-profile/",
+    "note": "Confirmed by kprofiles, kpopping and generasia."
+  },
+  {
+    "id": "rnbfh5mxaoutygw",
+    "name": "Belle",
+    "group": "KISS OF LIFE",
+    "birthday": "2004-03-20",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Belle_(singer)",
+    "note": "Official/Korean-time date 2004-03-20 per en.wikipedia, ja.wikipedia and kprofiles; kprofiles notes she was born March 19 local time in Seattle, USA"
+  },
+  {
+    "id": "l0i0cv2yp47xwew",
+    "name": "Haneul",
+    "group": "KISS OF LIFE",
+    "birthday": "2005-05-25",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiss-of-life-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "okq5lsy7jgaxyip",
+    "name": "Julie",
+    "group": "KISS OF LIFE",
+    "birthday": "2000-03-29",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiss-of-life-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "wwne3f053as3m0z",
+    "name": "Natty",
+    "group": "KISS OF LIFE",
+    "birthday": "2002-05-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kiss-of-life-members-profile/",
+    "note": "kprofiles + ja.wikipedia agree"
+  },
+  {
+    "id": "tdm24pluplm832f",
+    "name": "Chaewon",
+    "group": "LE SSERAFIM",
+    "birthday": "2000-08-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/le-sserafim-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree; Kim Chaewon (b. 2000) of LE SSERAFIM"
+  },
+  {
+    "id": "elru4kom9j7yb7x",
+    "name": "Eunchae",
+    "group": "LE SSERAFIM",
+    "birthday": "2006-11-10",
+    "confidence": "high",
+    "source": "https://kprofiles.com/le-sserafim-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "ega1rhquhbaaykj",
+    "name": "Kazuha",
+    "group": "LE SSERAFIM",
+    "birthday": "2003-08-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/le-sserafim-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "nzwmbwb4uyvk70x",
+    "name": "Sakura",
+    "group": "LE SSERAFIM",
+    "birthday": "1998-03-19",
+    "confidence": "high",
+    "source": "https://kprofiles.com/le-sserafim-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "bv42ve5lz48yn2a",
+    "name": "Yunjin",
+    "group": "LE SSERAFIM",
+    "birthday": "2001-10-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/le-sserafim-members-profile/",
+    "note": "kprofiles + Korean Wikipedia agree"
+  },
+  {
+    "id": "5h7u0ydjdvcmuph",
+    "name": "Chowon",
+    "group": "LIGHTSUM",
+    "birthday": "2002-09-16",
+    "confidence": "high",
+    "source": "https://kprofiles.com/lightsum-members-profile/",
+    "note": "Not ICHILLIN's Chowon; kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "94prxl8n0nbaa7b",
+    "name": "Hina",
+    "group": "LIGHTSUM",
+    "birthday": "2003-04-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/lightsum-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "9u24e36lu3bqsr9",
+    "name": "Juhyeon",
+    "group": "LIGHTSUM",
+    "birthday": "2004-04-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/lightsum-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "4t8g52by1v5xyvn",
+    "name": "Nayoung",
+    "group": "LIGHTSUM",
+    "birthday": "2002-11-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/lightsum-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "36gz2e3fxhk6s5t",
+    "name": "Sangah",
+    "group": "LIGHTSUM",
+    "birthday": "2002-09-04",
+    "confidence": "high",
+    "source": "https://kprofiles.com/lightsum-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "2dm7s1fu49vso9g",
+    "name": "Yujeong",
+    "group": "LIGHTSUM",
+    "birthday": "2004-06-14",
+    "confidence": "high",
+    "source": "https://kprofiles.com/lightsum-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "zyru1c3h8dxq4ju",
+    "name": "Hyeju",
+    "group": "Loossemble",
+    "birthday": "2001-11-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/loossemble-members-profile/",
+    "note": "Son Hyeju (ex-LOONA Olivia Hye); kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "m7gfgwcs5mey2mn",
+    "name": "Hyunjin",
+    "group": "Loossemble",
+    "birthday": "2000-11-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/loossemble-members-profile/",
+    "note": "Kim Hyunjin (ex-LOONA); kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "4zpi07vydno7o9r",
+    "name": "Yeojin",
+    "group": "Loossemble",
+    "birthday": "2002-11-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/loossemble-members-profile/",
+    "note": "Im Yeojin (ex-LOONA); kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "glxv7wil6aenx1g",
+    "name": "Mashiro",
+    "group": "MADEIN",
+    "birthday": "1999-12-16",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Sakamoto_Mashiro",
+    "note": "Generasia and kprofiles (https://kprofiles.com/madein-members-profile/) agree; same person as ex-Kep1er Sakamoto Mashiro, Korean Wikipedia Kep1er page also agrees"
+  },
+  {
+    "id": "xrhpcfjv8raaz6i",
+    "name": "MiU",
+    "group": "MADEIN",
+    "birthday": "2003-01-09",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/MiU",
+    "note": "Generasia and kprofiles (https://kprofiles.com/madein-members-profile/) agree"
+  },
+  {
+    "id": "twyyxchh9fflgfc",
+    "name": "Nagomi",
+    "group": "MADEIN",
+    "birthday": "2007-07-02",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Nagomi_(MADEIN)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/madein-members-profile/) agree"
+  },
+  {
+    "id": "ybudkbqimp1irus",
+    "name": "Serina",
+    "group": "MADEIN",
+    "birthday": "2006-05-03",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Serina_(MADEIN)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/madein-members-profile/) agree"
+  },
+  {
+    "id": "0mu5g59s84t9t2f",
+    "name": "Anna",
+    "group": "MEOVV",
+    "birthday": "2005-11-17",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/미야오",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "dyuwxszle9hfiog",
+    "name": "Ella",
+    "group": "MEOVV",
+    "birthday": "2008-12-01",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/미야오",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "ma2qwsqnncancyd",
+    "name": "Gawon",
+    "group": "MEOVV",
+    "birthday": "2005-04-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/미야오",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "nv7p0t0j9a1my3h",
+    "name": "Narin",
+    "group": "MEOVV",
+    "birthday": "2007-08-15",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/미야오",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "4grvjeoptfr45fa",
+    "name": "Sooin",
+    "group": "MEOVV",
+    "birthday": "2005-04-12",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/미야오",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "g0xmylfezj88ww6",
+    "name": "Danielle",
+    "group": "NewJeans",
+    "birthday": "2005-04-11",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/뉴진스",
+    "note": "Danielle Marsh; listed as former member (left Dec 2025) on ko.wikipedia; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "b3ynkuqh4ocaj1s",
+    "name": "Haerin",
+    "group": "NewJeans",
+    "birthday": "2006-05-15",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/뉴진스",
+    "note": "Kang Hae-rin; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "0u2ph9psvou1xqh",
+    "name": "Hanni",
+    "group": "NewJeans",
+    "birthday": "2004-10-06",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/뉴진스",
+    "note": "Pham Hanni; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "08fn3tist7nwtw1",
+    "name": "Hyein",
+    "group": "NewJeans",
+    "birthday": "2008-04-21",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/뉴진스",
+    "note": "Lee Hye-in; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "917vasci1zdfu16",
+    "name": "Minji",
+    "group": "NewJeans",
+    "birthday": "2004-05-07",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/뉴진스",
+    "note": "Kim Min-ji; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "p203cagc7h21yw9",
+    "name": "Ayaka",
+    "group": "NiziU",
+    "birthday": "2003-06-20",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "1c9ypmfc3egcdic",
+    "name": "Mako",
+    "group": "NiziU",
+    "birthday": "2001-04-04",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "ie3ogen2s9eczfb",
+    "name": "Maya",
+    "group": "NiziU",
+    "birthday": "2002-04-08",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "ywz651pnv1xn096",
+    "name": "Mayuka",
+    "group": "NiziU",
+    "birthday": "2003-11-13",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "xnfr7h8uh3iikl3",
+    "name": "Miihi",
+    "group": "NiziU",
+    "birthday": "2004-08-12",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "y11s3edad1gigx4",
+    "name": "Nina",
+    "group": "NiziU",
+    "birthday": "2005-02-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "lysh4dam34eh0c7",
+    "name": "Riku",
+    "group": "NiziU",
+    "birthday": "2002-10-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "5apdb22e073j6xs",
+    "name": "Rima",
+    "group": "NiziU",
+    "birthday": "2004-03-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "01keneht35gq3yx",
+    "name": "Rio",
+    "group": "NiziU",
+    "birthday": "2002-02-04",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/NiziU",
+    "note": "Korean Wikipedia and kprofiles agree"
+  },
+  {
+    "id": "f2sq6gp1qoz7g5p",
+    "name": "Bae",
+    "group": "NMIXX",
+    "birthday": "2004-12-28",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/엔믹스",
+    "note": "Bae Jin-sol; ko.wikipedia + kprofiles agree (some low-quality sites give other dates)"
+  },
+  {
+    "id": "uvfwoh50syackpn",
+    "name": "Haewon",
+    "group": "NMIXX",
+    "birthday": "2003-02-25",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/엔믹스",
+    "note": "Oh Hae-won; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "gfgi67gazw1zoqt",
+    "name": "Jini",
+    "group": "NMIXX",
+    "birthday": "2004-04-16",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Jini_(singer)",
+    "note": "Former member Jinni (Choi Yun-jin), left Dec 2022, now solo as JINI; en.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "ay7adgrq8igjz7v",
+    "name": "Jiwoo",
+    "group": "NMIXX",
+    "birthday": "2005-04-13",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/엔믹스",
+    "note": "Kim Ji-woo; ko.wikipedia + kprofiles agree (one low-quality site said 2004-09-21, disregarded)"
+  },
+  {
+    "id": "vaxes40hwogse5v",
+    "name": "Kyujin",
+    "group": "NMIXX",
+    "birthday": "2006-05-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/엔믹스",
+    "note": "Jang Kyu-jin; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "cgkqbtsald35b6w",
+    "name": "Lily",
+    "group": "NMIXX",
+    "birthday": "2002-10-17",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/엔믹스",
+    "note": "Lily Jin Morrow; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "p4welmyrhebkouf",
+    "name": "Sullyoon",
+    "group": "NMIXX",
+    "birthday": "2004-01-26",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/엔믹스",
+    "note": "Seol Yoon-a; ko.wikipedia + kprofiles agree (low-quality sites gave other dates, disregarded)"
+  },
+  {
+    "id": "2u8me11ksuz4kqr",
+    "name": "Kanie",
+    "group": "ODD YOUTH",
+    "birthday": "2007-07-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/odd-youth-members-profile/",
+    "note": "Kim Ye-won; Generasia agrees"
+  },
+  {
+    "id": "1hw90i7vj42we2n",
+    "name": "Maika",
+    "group": "ODD YOUTH",
+    "birthday": "2005-02-16",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/odd-youth-members-profile/",
+    "note": "Sugimura Maika; only kprofiles confirmed"
+  },
+  {
+    "id": "vzmpei36u8yg03t",
+    "name": "Myah",
+    "group": "ODD YOUTH",
+    "birthday": "2006-06-19",
+    "confidence": "high",
+    "source": "https://kprofiles.com/odd-youth-members-profile/",
+    "note": "Myah Guinn; Generasia agrees"
+  },
+  {
+    "id": "0ao27dck3rtq6mp",
+    "name": "Summer",
+    "group": "ODD YOUTH",
+    "birthday": "2007-09-23",
+    "confidence": "high",
+    "source": "https://kprofiles.com/odd-youth-members-profile/",
+    "note": "Lee Eun-seo; Generasia agrees"
+  },
+  {
+    "id": "og9z9ntwu0w736r",
+    "name": "Yeeum",
+    "group": "ODD YOUTH",
+    "birthday": "2007-12-27",
+    "confidence": "high",
+    "source": "https://kprofiles.com/odd-youth-members-profile/",
+    "note": "Jung Ye-eum; Generasia agrees"
+  },
+  {
+    "id": "ev9oxmjfchpqvad",
+    "name": "Arin",
+    "group": "OMG",
+    "birthday": "1999-06-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/oh-my-girl-members-profile/",
+    "note": "OMG interpreted as Oh My Girl; kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "glg80a5bagnw0h8",
+    "name": "Yooa",
+    "group": "OMG",
+    "birthday": "1995-09-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/oh-my-girl-members-profile/",
+    "note": "OMG interpreted as Oh My Girl; kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "yjmd1xsu9cnvf6w",
+    "name": "Yubin",
+    "group": "OMG",
+    "birthday": "1997-09-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/oh-my-girl-members-profile/",
+    "note": "OMG interpreted as Oh My Girl (Yubin, formerly Binnie); kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "426imaup7am694m",
+    "name": "Achiraya",
+    "group": "OURBIRTHDAY",
+    "birthday": "2009-08-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "Only fan-compiled sources available (kprofiles + kpopping agree); no encyclopedic source yet."
+  },
+  {
+    "id": "d3ts9ybjfw0f0kb",
+    "name": "Baby",
+    "group": "OURBIRTHDAY",
+    "birthday": "2009-02-10",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "kprofiles + kpopping agree; Bella.tw independently gives Xie Jia-Xuan (謝佳軒) born 2009-02-10 in Kaohsiung, though it uses a different stage name."
+  },
+  {
+    "id": "qfxwh0enazsl631",
+    "name": "Cho Hyejin",
+    "group": "OURBIRTHDAY",
+    "birthday": "2007-10-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "Only fan-compiled sources available (kprofiles + kpopping agree); group debuted Aug 2026, no encyclopedic source yet."
+  },
+  {
+    "id": "5s2eov2gwpu65z9",
+    "name": "Kilala",
+    "group": "OURBIRTHDAY",
+    "birthday": "2010-12-17",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "Takashima Kirara. Only fan-compiled sources available (kprofiles + kpopping agree); birth year 2010 also in kfriday.net."
+  },
+  {
+    "id": "lhhznasrp5xlntg",
+    "name": "Kuk Chorok",
+    "group": "OURBIRTHDAY",
+    "birthday": "2005-07-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "Only fan-compiled sources available (kprofiles + kpopping agree); birth year 2005 also in kfriday.net."
+  },
+  {
+    "id": "338714jiwwf21b1",
+    "name": "Shin Hyewon",
+    "group": "OURBIRTHDAY",
+    "birthday": "2005-10-05",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "Only fan-compiled sources available (kprofiles + kpopping agree); birth year 2005 also in kfriday.net."
+  },
+  {
+    "id": "5gm6uc8iyz78qzh",
+    "name": "U",
+    "group": "OURBIRTHDAY",
+    "birthday": "2008-08-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/?p=601499",
+    "note": "Kawasaki Yu. Only fan-compiled sources available (kprofiles + kpopping agree); birth year 2008 also in kfriday.net."
+  },
+  {
+    "id": "ghqjldzykfj83g3",
+    "name": "Swan",
+    "group": "Purple Kiss",
+    "birthday": "2003-07-11",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Swan_(PURPLE_KISS)",
+    "note": "Park Su-jin; kprofiles agrees"
+  },
+  {
+    "id": "lse24f50u99eqsj",
+    "name": "Yuki",
+    "group": "Purple Kiss",
+    "birthday": "2002-11-06",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Yuki_(PURPLE_KISS)",
+    "note": "Mori Koyuki; kprofiles agrees"
+  },
+  {
+    "id": "72rdko6cixxk499",
+    "name": "Chodan",
+    "group": "QWER",
+    "birthday": "1998-11-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/qwer-members-profile/",
+    "note": "kprofiles + Generasia agree"
+  },
+  {
+    "id": "010vemz0hwtvkn0",
+    "name": "Hina",
+    "group": "QWER",
+    "birthday": "2001-01-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/qwer-members-profile/",
+    "note": "kprofiles + Generasia agree"
+  },
+  {
+    "id": "qw85j0lo79qfpm1",
+    "name": "Magenta",
+    "group": "QWER",
+    "birthday": "1997-06-02",
+    "confidence": "high",
+    "source": "https://kprofiles.com/qwer-members-profile/",
+    "note": "kprofiles + Generasia agree"
+  },
+  {
+    "id": "sr265dindmel87j",
+    "name": "Siyeon",
+    "group": "QWER",
+    "birthday": "2000-05-16",
+    "confidence": "high",
+    "source": "https://kprofiles.com/qwer-members-profile/",
+    "note": "kprofiles + Generasia agree"
+  },
+  {
+    "id": "14uuuljis8yuhv3",
+    "name": "Irene",
+    "group": "Red Velvet",
+    "birthday": "1991-03-29",
+    "confidence": "high",
+    "source": "https://kprofiles.com/red-velvet-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "uih6h0oyn0gp8oz",
+    "name": "Joy",
+    "group": "Red Velvet",
+    "birthday": "1996-09-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/red-velvet-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "3sm0lnq3f4ih032",
+    "name": "Seulgi",
+    "group": "Red Velvet",
+    "birthday": "1994-02-10",
+    "confidence": "high",
+    "source": "https://kprofiles.com/red-velvet-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "ld4hswiwp70qzf8",
+    "name": "Wendy",
+    "group": "Red Velvet",
+    "birthday": "1994-02-21",
+    "confidence": "high",
+    "source": "https://kprofiles.com/red-velvet-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "n5dk8wfeo4it5rj",
+    "name": "Yeri",
+    "group": "Red Velvet",
+    "birthday": "1999-03-05",
+    "confidence": "high",
+    "source": "https://kprofiles.com/red-velvet-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "nb4qguvmqnwm4ip",
+    "name": "Liv",
+    "group": "RESCENE",
+    "birthday": "2006-10-11",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/리센느",
+    "note": "Jin Kyung-eun; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "o35e7yoyv1fer23",
+    "name": "May",
+    "group": "RESCENE",
+    "birthday": "2008-08-19",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/리센느",
+    "note": "Lee Ye-bin; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "x57avk9wsm7z3mp",
+    "name": "Minami",
+    "group": "RESCENE",
+    "birthday": "2006-11-29",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/리센느",
+    "note": "Ito Minami; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "dvpsfokq3apdgc5",
+    "name": "Woni",
+    "group": "RESCENE",
+    "birthday": "2004-05-25",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/리센느",
+    "note": "Jeong Won-i; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "ugkqnktg2678p8p",
+    "name": "Zena",
+    "group": "RESCENE",
+    "birthday": "2008-11-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/리센느",
+    "note": "Kim Ga-young; ko.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "acwr3auoby3gbka",
+    "name": "Haru",
+    "group": "S2iT",
+    "birthday": "2005-07-14",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/s2it-members-profile/",
+    "note": "Only kprofiles gives a full date; birth year consistent with press-reported age (Nocutnews, Mar 2026: 21, Korean year-age)"
+  },
+  {
+    "id": "gkvneemirksbdc8",
+    "name": "Hyobin",
+    "group": "S2iT",
+    "birthday": "2009-10-16",
+    "confidence": "low",
+    "source": "https://kprofiles.com/s2it-members-profile/",
+    "note": "Single source (kprofiles). CONFLICT: Nocutnews debut articles (Mar/Apr 2026, https://nocutnews.co.kr/news/6484133) give her age as 18, which by Korean year-age implies a 2008 birth year (the same method matches Haru/Yeonsoo/Sea). No third source found; verify the year."
+  },
+  {
+    "id": "49cai2ld8phbxyy",
+    "name": "Sea",
+    "group": "S2iT",
+    "birthday": "2006-08-09",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/s2it-members-profile/",
+    "note": "Only kprofiles gives a full date; birth year consistent with press-reported age (Nocutnews, Mar 2026: 20, Korean year-age)"
+  },
+  {
+    "id": "0616as7amt1glcw",
+    "name": "Seungbi",
+    "group": "S2iT",
+    "birthday": "2010-07-13",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/s2it-members-profile/",
+    "note": "Ahn Seungbi (ex-Universe Ticket). kprofiles + generasia agree on 2010-07-13. CONFLICT: Nocutnews debut articles (Mar/Apr 2026) give her age as 17, which by Korean year-age implies 2009. generasia may derive from kprofiles; verify the year."
+  },
+  {
+    "id": "xn33axcegkzn2q2",
+    "name": "Yeonsoo",
+    "group": "S2iT",
+    "birthday": "2005-06-25",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/s2it-members-profile/",
+    "note": "Only kprofiles gives a full date; birth year consistent with press-reported age (Nocutnews, Mar 2026: 21, Korean year-age)"
+  },
+  {
+    "id": "9bj7ofmfbtq2g84",
+    "name": "Dohee",
+    "group": "SAY MY NAME",
+    "birthday": "2006-12-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Kim Do-hee; kprofiles + kpopping agree"
+  },
+  {
+    "id": "ozb8sawh1v7h157",
+    "name": "Hitomi",
+    "group": "SAY MY NAME",
+    "birthday": "2001-10-06",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Hitomi_Honda",
+    "note": "Honda Hitomi (ex-IZ*ONE); Wikipedia, kprofiles, kpopping agree"
+  },
+  {
+    "id": "glxt96ommxkr74m",
+    "name": "Junhwi",
+    "group": "SAY MY NAME",
+    "birthday": "2007-06-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Seo Jun-hwi; kprofiles + kpopping agree"
+  },
+  {
+    "id": "19w3ecu1spf8gyp",
+    "name": "Kanny",
+    "group": "SAY MY NAME",
+    "birthday": "2005-12-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Napassanan Kaeokong; kprofiles + kpopping agree"
+  },
+  {
+    "id": "laioj4pz2t8l4eb",
+    "name": "Mei",
+    "group": "SAY MY NAME",
+    "birthday": "2005-09-27",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Terada Mei; kprofiles + kpopping agree"
+  },
+  {
+    "id": "pcuiqpaqbxpmumr",
+    "name": "Seungjoo",
+    "group": "SAY MY NAME",
+    "birthday": "2010-09-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Yoon Seung-ju; kprofiles + kpopping agree"
+  },
+  {
+    "id": "h4n26xao084dbql",
+    "name": "Shuie",
+    "group": "SAY MY NAME",
+    "birthday": "2004-06-06",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Yang Shumeng; kprofiles + kpopping agree; on hiatus since Jul 2026 per kprofiles"
+  },
+  {
+    "id": "eabg7a9f69b0kw2",
+    "name": "Soha",
+    "group": "SAY MY NAME",
+    "birthday": "2006-07-26",
+    "confidence": "high",
+    "source": "https://kprofiles.com/say-my-name-members-profile/",
+    "note": "Jung Min-ha; kprofiles + kpopping agree"
+  },
+  {
+    "id": "5ybo3sz4f9hb9ht",
+    "name": "Dinda",
+    "group": "Secret Number",
+    "birthday": "2003-08-22",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8B%9C%ED%81%AC%EB%A6%BF%EB%84%98%EB%B2%84"
+  },
+  {
+    "id": "m53synqrjln33qs",
+    "name": "Ebin",
+    "group": "Secret Number",
+    "birthday": "2004-01-28",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8B%9C%ED%81%AC%EB%A6%BF%EB%84%98%EB%B2%84"
+  },
+  {
+    "id": "buvgk5pfioqle1b",
+    "name": "Min C",
+    "group": "Secret Number",
+    "birthday": "2006-04-21",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8B%9C%ED%81%AC%EB%A6%BF%EB%84%98%EB%B2%84"
+  },
+  {
+    "id": "ouxovrlfd0bprmp",
+    "name": "Navi",
+    "group": "Secret Number",
+    "birthday": "2003-04-13",
+    "confidence": "medium",
+    "source": "https://kprofiles.com/secret-number-members-profile/",
+    "note": "CONFLICT: kprofiles, kpopping and TheTVDB give 2003-04-13; Korean Wikipedia gives 2003-04-23. Went with the majority, but the fan sources may copy each other. Needs official confirmation."
+  },
+  {
+    "id": "c6jjb6vyaav6r7y",
+    "name": "Taeyeon",
+    "group": "SNSD",
+    "birthday": "1989-03-09",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Taeyeon"
+  },
+  {
+    "id": "qzeb9jc500j3svb",
+    "name": "BIBI",
+    "group": "SOLO",
+    "birthday": "1998-09-27",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Bibi_(singer)",
+    "note": "Kim Hyeong-seo; en.wikipedia + DramaWiki agree"
+  },
+  {
+    "id": "h7e1fd06ymu10c9",
+    "name": "Chungha",
+    "group": "SOLO",
+    "birthday": "1996-02-09",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Chungha",
+    "note": "en + ko Wikipedia agree"
+  },
+  {
+    "id": "d7bb5nv6qspgtj6",
+    "name": "Chuu",
+    "group": "SOLO",
+    "birthday": "1999-10-20",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Chuu_(singer)",
+    "note": "en + ko Wikipedia agree"
+  },
+  {
+    "id": "xwye74fm3czgecq",
+    "name": "Jo Yuri",
+    "group": "SOLO",
+    "birthday": "2001-10-22",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Jo_Yu-ri",
+    "note": "en + ko Wikipedia agree"
+  },
+  {
+    "id": "k0q3p9joewvgh21",
+    "name": "Kwon Eunbi",
+    "group": "SOLO",
+    "birthday": "1995-09-27",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Kwon_Eun-bi",
+    "note": "en + ko Wikipedia agree"
+  },
+  {
+    "id": "nd3db7fbzvi94d5",
+    "name": "Somi",
+    "group": "SOLO",
+    "birthday": "2001-03-09",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Jeon_Somi",
+    "note": "Jeon Somi; en + ko Wikipedia agree"
+  },
+  {
+    "id": "m4c5dbajs3n0e75",
+    "name": "Yena",
+    "group": "SOLO",
+    "birthday": "1999-09-29",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Choi_Ye-na",
+    "note": "Choi Yena; en + ko Wikipedia agree"
+  },
+  {
+    "id": "wlk3xpcha6cluea",
+    "name": "Yves",
+    "group": "SOLO",
+    "birthday": "1997-05-24",
+    "confidence": "high",
+    "source": "https://en.wikipedia.org/wiki/Yves_(singer)",
+    "note": "Ha Soo-young (ex-LOONA); en.wikipedia + kprofiles agree"
+  },
+  {
+    "id": "k6rkjo3zhzsop0c",
+    "name": "Isa",
+    "group": "STAYC",
+    "birthday": "2002-01-23",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%94%A8"
+  },
+  {
+    "id": "g1n428bo4rv2sbg",
+    "name": "J",
+    "group": "STAYC",
+    "birthday": "2004-12-09",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%94%A8"
+  },
+  {
+    "id": "xnwezr5og83915u",
+    "name": "Seeun",
+    "group": "STAYC",
+    "birthday": "2003-06-14",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%94%A8"
+  },
+  {
+    "id": "pbv9rfducduf4dr",
+    "name": "Sieun",
+    "group": "STAYC",
+    "birthday": "2001-08-01",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%94%A8"
+  },
+  {
+    "id": "2e62hq3q8yrobck",
+    "name": "Sumin",
+    "group": "STAYC",
+    "birthday": "2001-03-13",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%94%A8"
+  },
+  {
+    "id": "0s80xqub7wowzj3",
+    "name": "Yoon",
+    "group": "STAYC",
+    "birthday": "2004-04-14",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%8A%A4%ED%85%8C%EC%9D%B4%EC%94%A8"
+  },
+  {
+    "id": "mpemp50f9a32oe6",
+    "name": "Chaewon",
+    "group": "tripleS",
+    "birthday": "2007-05-02",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree; Kim Chaewon (김채원) of tripleS, not LE SSERAFIM's Kim Chaewon"
+  },
+  {
+    "id": "d4hxq7n6wa1rwxq",
+    "name": "Chaeyeon",
+    "group": "tripleS",
+    "birthday": "2004-12-04",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "qinoh1yg3mwog9y",
+    "name": "Dahyun",
+    "group": "tripleS",
+    "birthday": "2003-01-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "62f0mto4x3ya2av",
+    "name": "Hayeon",
+    "group": "tripleS",
+    "birthday": "2007-08-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "h5ole4a9qufjkbw",
+    "name": "Hyerin",
+    "group": "tripleS",
+    "birthday": "2007-04-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "6fuzye8iz4regf1",
+    "name": "Jiwoo",
+    "group": "tripleS",
+    "birthday": "2005-10-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "6rwz738mhici55d",
+    "name": "Jiyeon",
+    "group": "tripleS",
+    "birthday": "2004-02-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree; Birth name Ji Seoyeon"
+  },
+  {
+    "id": "kxh9dwpsijbirje",
+    "name": "Joobin",
+    "group": "tripleS",
+    "birthday": "2009-01-16",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "l235kd3z7xdrkgv",
+    "name": "Kaede",
+    "group": "tripleS",
+    "birthday": "2005-12-20",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "20oa7yvpz24oqq4",
+    "name": "Kotone",
+    "group": "tripleS",
+    "birthday": "2004-03-10",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "j7z29ixc994yqd7",
+    "name": "Lynn",
+    "group": "tripleS",
+    "birthday": "2006-04-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "mxwkptypwsfouxu",
+    "name": "Mayu",
+    "group": "tripleS",
+    "birthday": "2002-05-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "5fd1z00pqxjtvpp",
+    "name": "Nakyoung",
+    "group": "tripleS",
+    "birthday": "2002-10-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "au2j8i3zt67pfnl",
+    "name": "Nien",
+    "group": "tripleS",
+    "birthday": "2003-06-02",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "1nsug7baxqkxrwr",
+    "name": "Seoah",
+    "group": "tripleS",
+    "birthday": "2010-06-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree; Birth name Jeong Haerin"
+  },
+  {
+    "id": "sd995l1q9pw11cw",
+    "name": "Seoyeon",
+    "group": "tripleS",
+    "birthday": "2003-08-06",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "195b8sa5pql8df5",
+    "name": "Shion",
+    "group": "tripleS",
+    "birthday": "2006-04-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "t36z89kekw150vc",
+    "name": "Sohyun",
+    "group": "tripleS",
+    "birthday": "2002-10-13",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "wsepiq61a7aa636",
+    "name": "Soomin",
+    "group": "tripleS",
+    "birthday": "2007-10-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "fsp7r0r199la6x7",
+    "name": "Sullin",
+    "group": "tripleS",
+    "birthday": "2006-11-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "z856rrwas9kojy6",
+    "name": "Xinyu",
+    "group": "tripleS",
+    "birthday": "2002-05-25",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "slrgxvc473nrx0g",
+    "name": "Yeonji",
+    "group": "tripleS",
+    "birthday": "2008-01-08",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "6zfd9khwxjk32ob",
+    "name": "Yooyeon",
+    "group": "tripleS",
+    "birthday": "2001-02-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "ofpytc1lh3jg9lh",
+    "name": "Yubin",
+    "group": "tripleS",
+    "birthday": "2005-02-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/triples-members-profile/",
+    "note": "kprofiles + Korean Wikipedia (트리플에스) agree"
+  },
+  {
+    "id": "i881gwidjyx8wb9",
+    "name": "Elena",
+    "group": "TUIDE",
+    "birthday": "2008-04-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "Full date from kprofiles and kpopping; HK01/Popmama/Popbela give year 2008 only (consistent)."
+  },
+  {
+    "id": "9pb2dfiw363ksr9",
+    "name": "Jia",
+    "group": "TUIDE",
+    "birthday": "2008-08-22",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "kprofiles, kpopping, HK01 and Popmama give 2008-08-22; one Popbela article lists birth year 2009 (no full date). Majority/third-source check supports 2008."
+  },
+  {
+    "id": "607dchfe6tclyug",
+    "name": "Saki",
+    "group": "TUIDE",
+    "birthday": "2010-10-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "Full date from kprofiles and kpopping; HK01/Popmama give year 2010 only (consistent)."
+  },
+  {
+    "id": "478blgems5lagyg",
+    "name": "Seah",
+    "group": "TUIDE",
+    "birthday": "2011-01-04",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "Confirmed by kprofiles (TUIDE profile) and kpopping."
+  },
+  {
+    "id": "8zraygru84er6qj",
+    "name": "Seohee",
+    "group": "TUIDE",
+    "birthday": "2006-10-11",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "Confirmed by kprofiles (TUIDE profile) and kpopping."
+  },
+  {
+    "id": "dshmnapijs3ugtp",
+    "name": "Seoyeon",
+    "group": "TUIDE",
+    "birthday": "2008-03-04",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "Confirmed by kprofiles (TUIDE profile) and kpopping."
+  },
+  {
+    "id": "myiijucoleod7hi",
+    "name": "Yi Hani",
+    "group": "TUIDE",
+    "birthday": "2011-01-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/pledis-girls-members-profile/",
+    "note": "Confirmed by kprofiles (TUIDE profile) and kpopping."
+  },
+  {
+    "id": "7pcl8vdfu5l4xeq",
+    "name": "Chaeyoung",
+    "group": "TWICE",
+    "birthday": "1999-04-23",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "awwz0sf7bqtbynl",
+    "name": "Dahyun",
+    "group": "TWICE",
+    "birthday": "1998-05-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "77pj0v5tyxwzx1h",
+    "name": "Jeongyeon",
+    "group": "TWICE",
+    "birthday": "1996-11-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "8clv4y5svgwbjf5",
+    "name": "Jihyo",
+    "group": "TWICE",
+    "birthday": "1997-02-01",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "spizi348rgf460d",
+    "name": "Mina",
+    "group": "TWICE",
+    "birthday": "1997-03-24",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "79m15ps700irsnd",
+    "name": "Momo",
+    "group": "TWICE",
+    "birthday": "1996-11-09",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "br391a4i1hyzyd9",
+    "name": "Nayeon",
+    "group": "TWICE",
+    "birthday": "1995-09-22",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "6hljettwnjql9so",
+    "name": "Sana",
+    "group": "TWICE",
+    "birthday": "1996-12-29",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "2irdc1hkpimk6w4",
+    "name": "Tzuyu",
+    "group": "TWICE",
+    "birthday": "1999-06-14",
+    "confidence": "high",
+    "source": "https://kprofiles.com/twice-members-profile/",
+    "note": "kprofiles + ko.wikipedia agree"
+  },
+  {
+    "id": "ygrh9dnv4snqfit",
+    "name": "Ako",
+    "group": "UNCHILD",
+    "birthday": "2008-07-08",
+    "confidence": "high",
+    "source": "https://www.highup-ent.com/?p=5146",
+    "note": "Sasaki Ako; official HighUp profile and kprofiles agree; Popbela lists 18 July 2008 (outlier)"
+  },
+  {
+    "id": "ll07i8tsor96ifr",
+    "name": "Evon",
+    "group": "UNCHILD",
+    "birthday": "2008-07-11",
+    "confidence": "high",
+    "source": "https://www.highup-ent.com/?p=5146",
+    "note": "Lee Ji-min; official HighUp profile, kprofiles, Popbela agree"
+  },
+  {
+    "id": "5ew4hlf3h63e96r",
+    "name": "Haeun",
+    "group": "UNCHILD",
+    "birthday": "2009-01-16",
+    "confidence": "high",
+    "source": "https://www.highup-ent.com/?p=5146",
+    "note": "Na Ha-eun; official HighUp profile, kprofiles, Popbela agree"
+  },
+  {
+    "id": "xzbz6ygu3ac6x1j",
+    "name": "Heekie",
+    "group": "UNCHILD",
+    "birthday": "2007-03-17",
+    "confidence": "high",
+    "source": "https://www.highup-ent.com/?p=5146",
+    "note": "Byun Seo-young; official HighUp profile, kprofiles, Popbela agree"
+  },
+  {
+    "id": "hijo9wbvinv1ha8",
+    "name": "Tina",
+    "group": "UNCHILD",
+    "birthday": "2008-03-09",
+    "confidence": "high",
+    "source": "https://www.highup-ent.com/?p=5146",
+    "note": "Bian Tianyu; official HighUp profile, kprofiles agree"
+  },
+  {
+    "id": "r138vp9piwarweq",
+    "name": "Yeeun",
+    "group": "UNCHILD",
+    "birthday": "2006-12-21",
+    "confidence": "high",
+    "source": "https://www.highup-ent.com/?p=5146",
+    "note": "Park Ye-eun; official HighUp profile, kprofiles agree"
+  },
+  {
+    "id": "t7149twbzj35bqr",
+    "name": "Elisia",
+    "group": "UNIS",
+    "birthday": "2009-04-18",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "dkmefwhdq1rs859",
+    "name": "Gehlee",
+    "group": "UNIS",
+    "birthday": "2007-08-19",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "hllv42tjqudnmx0",
+    "name": "Hyeonju",
+    "group": "UNIS",
+    "birthday": "2001-11-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "km5312n7pddl7xi",
+    "name": "Kotoko",
+    "group": "UNIS",
+    "birthday": "2007-10-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "1489vhmj0saowib",
+    "name": "Nana",
+    "group": "UNIS",
+    "birthday": "2007-06-06",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "gpksgvqrcizxprz",
+    "name": "Seowon",
+    "group": "UNIS",
+    "birthday": "2011-01-27",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "p6rdd07l98mb68v",
+    "name": "Yoona",
+    "group": "UNIS",
+    "birthday": "2009-10-07",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "anu3d998d945il3",
+    "name": "Yunha",
+    "group": "UNIS",
+    "birthday": "2009-02-28",
+    "confidence": "high",
+    "source": "https://kprofiles.com/kpop-idols-who-share-birthdays-with-unis-members/",
+    "note": "Confirmed by kprofiles and ticket.co.jp member list."
+  },
+  {
+    "id": "ubkrmz72pp7bneh",
+    "name": "Chaena",
+    "group": "USPEER",
+    "birthday": "2009-06-08",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Chaena",
+    "note": "Generasia and kprofiles (https://kprofiles.com/uspeer-members-profile/) agree"
+  },
+  {
+    "id": "ymv8b2fnv01n9sh",
+    "name": "Daon",
+    "group": "USPEER",
+    "birthday": "2008-07-07",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Daon_(USPEER)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/uspeer-members-profile/) agree"
+  },
+  {
+    "id": "7q0gqj8yr8x4nuk",
+    "name": "Roa",
+    "group": "USPEER",
+    "birthday": "2009-10-28",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Roa_(USPEER)",
+    "note": "Generasia and kprofiles (https://kprofiles.com/uspeer-members-profile/) agree"
+  },
+  {
+    "id": "mzhwc92lj8m8qmv",
+    "name": "Seoyu",
+    "group": "USPEER",
+    "birthday": "2007-11-26",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Seoyu",
+    "note": "Generasia and kprofiles (https://kprofiles.com/uspeer-members-profile/) agree"
+  },
+  {
+    "id": "018eihf5awcphvw",
+    "name": "Sian",
+    "group": "USPEER",
+    "birthday": "2007-08-18",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Sian",
+    "note": "Generasia and kprofiles (https://kprofiles.com/uspeer-members-profile/) agree"
+  },
+  {
+    "id": "pqg9il5zcrp9brz",
+    "name": "Soee",
+    "group": "USPEER",
+    "birthday": "2007-03-11",
+    "confidence": "high",
+    "source": "https://www.generasia.com/wiki/Soee",
+    "note": "Generasia and kprofiles (https://kprofiles.com/uspeer-members-profile/) agree"
+  },
+  {
+    "id": "i9wfxsfvv8bitby",
+    "name": "Eunha",
+    "group": "VIVIZ",
+    "birthday": "1997-05-30",
+    "confidence": "high",
+    "source": "https://kprofiles.com/viviz-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "cwq1wl5miubv10f",
+    "name": "SinB",
+    "group": "VIVIZ",
+    "birthday": "1998-06-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/viviz-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "x09xnyh574g670l",
+    "name": "Umji",
+    "group": "VIVIZ",
+    "birthday": "1998-08-19",
+    "confidence": "high",
+    "source": "https://kprofiles.com/viviz-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "qfzaq88xodisscs",
+    "name": "Jiyoon",
+    "group": "VVUP",
+    "birthday": "2008-07-15",
+    "confidence": "high",
+    "source": "https://kprofiles.com/vvup-members-profile/",
+    "note": "kprofiles + Generasia + kpopofficial agree"
+  },
+  {
+    "id": "yrcajqi6nf6dbql",
+    "name": "Kim",
+    "group": "VVUP",
+    "birthday": "2006-06-03",
+    "confidence": "high",
+    "source": "https://kprofiles.com/vvup-members-profile/",
+    "note": "kprofiles + Generasia + kpopofficial agree; Kimberley Fransa Salim. A Weverse post by KIM dated 2025-04-05 thanks fans for her 19th birthday, which doesn't fit June 3; kprofiles, Generasia, kpopofficial and a Wikipedia draft all give 2006-06-03"
+  },
+  {
+    "id": "ox8krr1mqc0d5z5",
+    "name": "Paan",
+    "group": "VVUP",
+    "birthday": "2006-06-22",
+    "confidence": "high",
+    "source": "https://kprofiles.com/vvup-members-profile/",
+    "note": "kprofiles + Generasia + kpopofficial agree"
+  },
+  {
+    "id": "zoauy71n4l146pk",
+    "name": "Suyeon",
+    "group": "VVUP",
+    "birthday": "2007-03-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/vvup-members-profile/",
+    "note": "kprofiles + Generasia + kpopofficial agree"
+  },
+  {
+    "id": "grx44brepnbhw5f",
+    "name": "Jihan",
+    "group": "Weeekly",
+    "birthday": "2004-07-12",
+    "confidence": "high",
+    "source": "https://kprofiles.com/weeekly-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "bqrnrgbx113wvkf",
+    "name": "Monday",
+    "group": "Weeekly",
+    "birthday": "2002-05-10",
+    "confidence": "high",
+    "source": "https://kprofiles.com/weeekly-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "qa0wxyqdzjzvz7f",
+    "name": "Zoa",
+    "group": "Weeekly",
+    "birthday": "2005-05-31",
+    "confidence": "high",
+    "source": "https://kprofiles.com/weeekly-members-profile/",
+    "note": "Confirmed by kprofiles and Korean Wikipedia."
+  },
+  {
+    "id": "0tmtn83yw4l46av",
+    "name": "Bona",
+    "group": "WJSN",
+    "birthday": "1995-08-19",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "x9dina1veek93fy",
+    "name": "Dawon",
+    "group": "WJSN",
+    "birthday": "1997-04-16",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80",
+    "note": "Official/registered date (ko.wikipedia + kprofiles agree). kprofiles also claims a 'real birthday' of 1997-05-27; not corroborated."
+  },
+  {
+    "id": "t3vfpro3bdpvq7s",
+    "name": "Dayoung",
+    "group": "WJSN",
+    "birthday": "1999-05-14",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "s7wvj06k9pa6wv2",
+    "name": "Eunseo",
+    "group": "WJSN",
+    "birthday": "1998-05-27",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "p26zpvvok1x35yf",
+    "name": "Exy",
+    "group": "WJSN",
+    "birthday": "1995-11-06",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "d580vs6re4fbxpk",
+    "name": "Luda",
+    "group": "WJSN",
+    "birthday": "1997-03-06",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80",
+    "note": "Official/registered date (ko.wikipedia + kprofiles agree). kprofiles also claims a 'real birthday' of 1997-02-06; not corroborated."
+  },
+  {
+    "id": "5i28xpdinvid9on",
+    "name": "Seola",
+    "group": "WJSN",
+    "birthday": "1994-12-24",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "h3vq843qz4zmmfe",
+    "name": "Soobin",
+    "group": "WJSN",
+    "birthday": "1996-09-14",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80",
+    "note": "Official/registered date (ko.wikipedia + kprofiles agree). kprofiles also claims a 'real birthday' of 1996-07-14; not corroborated."
+  },
+  {
+    "id": "ia7dprm7gdqxwps",
+    "name": "Yeonjung",
+    "group": "WJSN",
+    "birthday": "1999-08-03",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "q17u7kaj099ipd8",
+    "name": "Yeoreum",
+    "group": "WJSN",
+    "birthday": "1999-01-10",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%A3%BC%EC%86%8C%EB%85%80"
+  },
+  {
+    "id": "bgj6rfu42m383eo",
+    "name": "Lucy",
+    "group": "WOOAH",
+    "birthday": "2004-04-09",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%95%84!"
+  },
+  {
+    "id": "7t6zubgzt6lvcax",
+    "name": "Minseo",
+    "group": "WOOAH",
+    "birthday": "2004-08-12",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%95%84!"
+  },
+  {
+    "id": "r89bs71mfwbg4x3",
+    "name": "Nana",
+    "group": "WOOAH",
+    "birthday": "2001-03-09",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%95%84!"
+  },
+  {
+    "id": "pzgz9mdml85ihhf",
+    "name": "Sora",
+    "group": "WOOAH",
+    "birthday": "2003-08-30",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%95%84!"
+  },
+  {
+    "id": "7xctjjmlq3i75ph",
+    "name": "Wooyeon",
+    "group": "WOOAH",
+    "birthday": "2003-02-11",
+    "confidence": "high",
+    "source": "https://ko.wikipedia.org/wiki/%EC%9A%B0%EC%95%84!"
+  },
+  {
+    "id": "dx8f5egeffkb7kk",
+    "name": "Chisa",
+    "group": "XG",
+    "birthday": "2002-01-17",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  },
+  {
+    "id": "hy7ycys5thjlm3y",
+    "name": "Cocona",
+    "group": "XG",
+    "birthday": "2005-12-06",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  },
+  {
+    "id": "ffymy8s2stg0wex",
+    "name": "Harvey",
+    "group": "XG",
+    "birthday": "2002-12-18",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  },
+  {
+    "id": "gzgyusi6g59urd4",
+    "name": "Hinata",
+    "group": "XG",
+    "birthday": "2002-06-11",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  },
+  {
+    "id": "oaoqrhguzng1g4i",
+    "name": "Juria",
+    "group": "XG",
+    "birthday": "2004-11-28",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  },
+  {
+    "id": "2gty1q15dlzhz7f",
+    "name": "Jurin",
+    "group": "XG",
+    "birthday": "2002-06-19",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  },
+  {
+    "id": "f9v5y24yp9d0j4a",
+    "name": "Maya",
+    "group": "XG",
+    "birthday": "2005-08-10",
+    "confidence": "high",
+    "source": "https://ja.wikipedia.org/wiki/XG_(%E9%9F%B3%E6%A5%BD%E3%82%B0%E3%83%AB%E3%83%BC%E3%83%97)"
+  }
+]
