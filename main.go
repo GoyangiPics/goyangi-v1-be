@@ -68,6 +68,9 @@ func main() {
 	// uploaders.aliases, same reason: without it the bot keeps minting a second
 	// uploader for anyone whose Discord name differs from their site name.
 	hooks.RegisterUploaderFields(app)
+	// groups_idols.birthday, same reason — and the admin UI can't add it on
+	// production, where saving a collection there crashes the server.
+	hooks.RegisterIdolFields(app)
 	// Owners may rename their uploader, not unblock it or claim aliases.
 	hooks.RegisterUploaderGuards(app)
 	// Who may change which posts and sets: access rules, derived set uploaders,
