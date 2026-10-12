@@ -35,6 +35,10 @@ func main() {
 
 	app := pocketbase.New()
 
+	// First, so a crash anywhere after this is captured: the runtime writes its
+	// trace to pb_data/crash.log and the next boot files it in system_logs.
+	hooks.RegisterCrashReport(app)
+
 	// Operational error sink ("system_logs" collection). Registered first so
 	// the other subsystems can log during their own setup.
 	hooks.RegisterSystemLogs(app)
