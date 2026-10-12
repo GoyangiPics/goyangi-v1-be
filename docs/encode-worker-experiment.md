@@ -89,5 +89,7 @@ Every encode logs a `📊` line, so `grep 📊` on the backend log is the result
 5. **Bill check.** A day later, compare the session ≈$ against Railway's usage
    page, which also includes the worker's idle memory while awake.
 
-Compare the ffmpeg versions too. The worker image ships Alpine's ffmpeg (6.1,
-SVT-AV1 2.x), and a newer SVT-AV1 locally can be faster per frame on its own.
+Compare the ffmpeg versions too. The worker runs FFmpeg 9.0 (BtbN's static
+build, which bundles its own SVT-AV1). A different SVT-AV1 version locally can be
+faster or slower per frame on its own, so for a fair A/B, run the baseline on
+the same ffmpeg release.

@@ -14,11 +14,30 @@ COPY . .
 RUN CGO_ENABLED=0 go build -o /encode-worker ./cmd/encode-worker
 
 # --- Run stage ---
-FROM alpine:3.22
+FROM debian:trixie-slim
 
-# ca-certificates for R2 over HTTPS. The worker checks at boot that this ffmpeg
-# has every encoder in remoteenc.RequiredEncoders and refuses to start if not.
-RUN apk add --no-cache ca-certificates ffmpeg
+# FFmpeg 9.0 from BtbN's static builds (the Linux counterpart of the Gyan
+# builds the Windows host uses): no distro packages it yet — Alpine edge is on
+# 8.1. The "latest" release is rebuilt daily from the 9.0 branch, so patch
+# releases arrive on the next image build; the boot log prints the exact
+# version. The download is checked against the release's own checksum file.
+#
+# ca-certificates stays for R2 over HTTPS. The worker checks at boot that this
+# ffmpeg has every encoder in remoteenc.RequiredEncoders and refuses to start
+# if not.
+ARG FFMPEG_BUILD=ffmpeg-n9.0-latest-linux64-gpl-9.0
+ARG FFMPEG_RELEASE=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl xz-utils \
+ && cd /tmp \
+ && curl -fsSLO "$FFMPEG_RELEASE/$FFMPEG_BUILD.tar.xz" \
+ && curl -fsSL "$FFMPEG_RELEASE/checksums.sha256" | grep "  $FFMPEG_BUILD.tar.xz\$" | sha256sum -c - \
+ && tar -xJf "$FFMPEG_BUILD.tar.xz" \
+ && mv "$FFMPEG_BUILD/bin/ffmpeg" "$FFMPEG_BUILD/bin/ffprobe" /usr/local/bin/ \
+ && rm -rf /tmp/* \
+ && apt-get purge -y curl xz-utils \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /encode-worker /usr/local/bin/encode-worker
 
