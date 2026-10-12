@@ -156,6 +156,12 @@ func main() {
 	}
 	log.Printf("🔑 authenticated against %s", c.baseURL)
 
+	// PocketBase ignores unknown fields on update, so against a server whose
+	// schema predates the field every write would "succeed" and store nothing.
+	if err := c.requireBirthdayField(); err != nil {
+		log.Fatal(err)
+	}
+
 	idols, err := c.listIdols()
 	if err != nil {
 		log.Fatalf("listing groups_idols: %v", err)
@@ -221,6 +227,27 @@ func (c *client) authenticate(email, password string) error {
 	}
 	c.token = out.Token
 	return nil
+}
+
+func (c *client) requireBirthdayField() error {
+	var col struct {
+		Fields []struct {
+			Name string `json:"name"`
+			Type string `json:"type"`
+		} `json:"fields"`
+	}
+	if err := c.do(http.MethodGet, "/api/collections/groups_idols", nil, &col); err != nil {
+		return fmt.Errorf("reading the groups_idols schema: %w", err)
+	}
+	for _, f := range col.Fields {
+		if f.Name == "birthday" {
+			if f.Type != "date" {
+				return fmt.Errorf("groups_idols.birthday is a %s field, expected date", f.Type)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("groups_idols has no birthday field yet: add it (type date) before running this")
 }
 
 func (c *client) listIdols() ([]idol, error) {
