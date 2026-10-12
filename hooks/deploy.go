@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -187,7 +189,18 @@ func RegisterDeployInfo(app *pocketbase.PocketBase, commit string) {
 		if note == "" {
 			note = "server started"
 		}
-		ctx := map[string]any{"commit": commit}
+		ctx := map[string]any{"commit": commit, "go": runtime.Version()}
+		// The toolchain the updater built with is whatever that host has
+		// installed, and its JSON engine is how a collection save from the
+		// admin UI crashed production. GOEXPERIMENT and friends live in the
+		// build settings.
+		if info, ok := debug.ReadBuildInfo(); ok {
+			for _, s := range info.Settings {
+				if s.Key == "GOEXPERIMENT" || s.Key == "GOOS" || s.Key == "GOARCH" || s.Key == "-tags" {
+					ctx[s.Key] = s.Value
+				}
+			}
+		}
 		if os.Getenv("GOYANGI_DEPLOY_LEVEL") == "warning" {
 			LogServerWarning(note, ctx)
 		} else {
