@@ -90,6 +90,11 @@ type h264EncoderChoice struct {
 // common Windows builds list h264_nvenc whether or not an NVIDIA GPU and
 // driver are present.
 var h264Encoder = sync.OnceValue(func() h264EncoderChoice {
+	// The encode worker has no GPU (exp: remote encode experiment).
+	if remoteEncoder() != nil {
+		log.Printf("🛰️  H.264: encode worker in use — SD rendition encodes with libx264 there")
+		return h264EncoderChoice{kind: h264CPU}
+	}
 	want := strings.ToLower(strings.TrimSpace(os.Getenv("GOYANGI_H264_ENCODER")))
 	dev := os.Getenv("GOYANGI_VAAPI_DEVICE")
 	if dev == "off" {

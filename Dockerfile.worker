@@ -1,0 +1,25 @@
+# Encode worker (exp branch experiment) — see cmd/encode-worker.
+# On Railway: set RAILWAY_DOCKERFILE_PATH=Dockerfile.worker on the service, so
+# this file is used instead of the backend's Dockerfile.
+
+# --- Build stage ---
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -o /encode-worker ./cmd/encode-worker
+
+# --- Run stage ---
+FROM alpine:3.22
+
+# ca-certificates for R2 over HTTPS. The worker checks at boot that this ffmpeg
+# has every encoder in remoteenc.RequiredEncoders and refuses to start if not.
+RUN apk add --no-cache ca-certificates ffmpeg
+
+COPY --from=builder /encode-worker /usr/local/bin/encode-worker
+
+CMD ["encode-worker"]

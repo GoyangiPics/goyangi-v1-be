@@ -327,6 +327,12 @@ func moveFileToCustomR2Path(app *pocketbase.PocketBase, recordId string) {
 		LogUploadError(fmt.Sprintf("R2: could not read file content: %v", err), map[string]any{"record": recordId})
 		return
 	}
+	// The encode worker fetches the source from R2 itself rather than having
+	// it re-sent once per rendition (exp: remote encode experiment). Only
+	// meaningful when PocketBase's storage actually is R2.
+	if app.Settings().S3.Enabled {
+		defer registerRemoteSource(content, pbKey)()
+	}
 
 	r2BaseURL := strings.TrimRight(os.Getenv("R2_PUBLIC_URL"), "/")
 	filetype := record.GetString("filetype")

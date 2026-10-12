@@ -8,14 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"goyangi-v1-be/remoteenc"
+
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 // requiredEncoders are the ffmpeg encoders the upload pipeline cannot work
-// without: AV1 for the canonical MP4 and AVIF previews, x264 for the SD
-// fallback's CPU path, WebP for WebP previews, AAC for video audio.
-var requiredEncoders = []string{"libsvtav1", "libx264", "libwebp", "aac"}
+// without — see remoteenc.RequiredEncoders, which the encode worker checks too.
+var requiredEncoders = remoteenc.RequiredEncoders
 
 // RegisterPreflight checks the external tools the encode pipeline shells out
 // to, once at boot, and says plainly in the log what is missing.
@@ -37,6 +38,19 @@ func RegisterPreflight(app *pocketbase.PocketBase) {
 
 func runPreflight() {
 	var missing []string
+
+	// Also wakes a sleeping worker, so the first upload doesn't pay the boot.
+	if c := remoteEncoder(); c != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		start := time.Now()
+		health, err := c.Health(ctx)
+		cancel()
+		if err != nil {
+			log.Printf("❌ preflight: encode worker unreachable: %v", err)
+		} else {
+			log.Printf("🛰️  preflight: encode worker up in %s: %s", time.Since(start).Round(time.Millisecond), health)
+		}
+	}
 
 	for _, bin := range []string{"ffmpeg", "ffprobe"} {
 		path, err := exec.LookPath(bin)

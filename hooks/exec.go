@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 )
@@ -17,6 +18,13 @@ const encodeTimeout = 5 * time.Minute
 // runEncoder runs an encoder subprocess with a hard timeout, capturing stderr
 // for error reporting. Returns a clear error on timeout.
 func runEncoder(name string, args ...string) error {
+	_, err := runEncoderStats(name, args...)
+	return err
+}
+
+// runEncoderStats is runEncoder that also hands back the finished process, for
+// its CPU time and peak memory.
+func runEncoderStats(name string, args ...string) (*os.ProcessState, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), encodeTimeout)
 	defer cancel()
 
@@ -25,11 +33,11 @@ func runEncoder(name string, args ...string) error {
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("%s timed out after %s", name, encodeTimeout)
+			return nil, fmt.Errorf("%s timed out after %s", name, encodeTimeout)
 		}
-		return fmt.Errorf("%w\n%s", err, stderr.String())
+		return nil, fmt.Errorf("%w\n%s", err, stderr.String())
 	}
-	return nil
+	return cmd.ProcessState, nil
 }
 
 // probeTimeout bounds metadata probes (ffprobe), which should be near-instant.

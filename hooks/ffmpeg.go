@@ -3,6 +3,7 @@ package hooks
 import (
 	"fmt"
 	"os"
+	"time"
 )
 
 // scaleDown1080p caps the video's LONGER edge at 1920 whatever the orientation,
@@ -29,7 +30,14 @@ func runFFmpeg(content []byte, srcExt, outExt string, args ...string) ([]byte, e
 // runFFmpegWith is runFFmpeg with an extra slot for ffmpeg *global* options,
 // which must precede -i on the command line. Only the hardware paths need it
 // (-vaapi_device); everything else goes through runFFmpeg.
+//
+// With ENCODE_WORKER_URL set the same run happens on the encode worker instead
+// (exp: remote encode experiment, see remote_encode.go).
 func runFFmpegWith(content []byte, srcExt, outExt string, preInput, args []string) ([]byte, error) {
+	if c := remoteEncoder(); c != nil {
+		return runFFmpegRemote(c, content, srcExt, outExt, preInput, args)
+	}
+
 	input, err := os.CreateTemp("", "goyangi-in-*"+srcExt)
 	if err != nil {
 		return nil, fmt.Errorf("create temp input: %w", err)
@@ -52,9 +60,12 @@ func runFFmpegWith(content []byte, srcExt, outExt string, preInput, args []strin
 	full = append(full, "-i", input.Name())
 	full = append(full, args...)
 	full = append(full, "-y", output.Name())
-	if err := runEncoder("ffmpeg", full...); err != nil {
+	start := time.Now()
+	ps, err := runEncoderStats("ffmpeg", full...)
+	if err != nil {
 		return nil, err
 	}
+	logLocalEncode(encodeOpName(), time.Since(start), ps)
 
 	return os.ReadFile(output.Name())
 }
