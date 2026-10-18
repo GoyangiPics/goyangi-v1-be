@@ -759,6 +759,16 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 			return textDetection(in, items, pingRoleNames)
 		}
 
+		// A reply that pings the same roles again, to a set its poster may reply
+		// to (poster.canReplyTo), continues that set like a plain reply would:
+		// the ping is for people, the reply says where it belongs. A different
+		// subject still opens its own set, as a repeat ping's does.
+		if replied := repliedTo(msg); replied != 0 {
+			if remembered, found := lookupSet(replied.String()); found && in.poster.canReplyTo(remembered) && sameSubject(remembered, metadata) {
+				return ingestPlan{metadata: remembered, items: items, joinsSet: true, ok: true, trigger: "reply"}
+			}
+		}
+
 		// Re-pinging the same roles is how plenty of people post one drop: three
 		// messages in a row, each with its own ping, rather than a reply chain.
 		// Taken literally that is three sets of the same thing, so a repeat ping

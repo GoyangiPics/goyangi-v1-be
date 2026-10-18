@@ -584,6 +584,17 @@ func TestRelayAppRepliesContinueItsOwnSet(t *testing.T) {
 	code, resp, raw = f.post(t, body(message{id: "2000000000000000064", author: "1000000000000000078", username: "otherbot", bot: true,
 		files: []string{"c.png"}, replyTo: "2000000000000000062"}, request{}))
 	expect(t, "another app's reply", code, resp, raw, http.StatusOK, string(statusIgnored), reasonNoTrigger, "")
+
+	// Pinging the same role again in the reply changes nothing: it still joins.
+	code, resp, raw = f.post(t, body(message{id: "2000000000000000066", author: testRelayApp, username: "kyujinbot", bot: true,
+		mentionRoles: []string{testRole}, files: []string{"d.png"}, replyTo: "2000000000000000062"}, request{roles: yujin}))
+	expect(t, "its reply with the ping", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if f.postFor(t, "2000000000000000066").GetString("set") != f.postFor(t, "2000000000000000062").GetString("set") {
+		t.Error("the app's reply with a ping didn't join the set its post opened")
+	}
+	if n := f.count(t, "contents_sets"); n != 1 {
+		t.Errorf("%d sets, want 1", n)
+	}
 }
 
 func TestIngestAPIMentionWithoutLinesTriesTheText(t *testing.T) {
