@@ -188,6 +188,7 @@ type message struct {
 	bot                                    bool
 	mentionRoles                           []string
 	files                                  []string // attachment filenames
+	replyTo                                string   // the message this one replies to
 }
 
 // request is the rest of an ingest request around a message.
@@ -230,6 +231,10 @@ func body(m message, r request) string {
 		"embeds":        []any{},
 		"timestamp":     "2026-10-11T12:00:00.000000+00:00",
 		"type":          0,
+	}
+	if m.replyTo != "" {
+		msg["type"] = 19
+		msg["message_reference"] = map[string]any{"type": 0, "message_id": m.replyTo, "channel_id": m.channel, "guild_id": testGuild}
 	}
 	req := map[string]any{"message": msg, "roles": r.roles}
 	switch r.botID {
@@ -558,6 +563,27 @@ func TestRelayAppPostsDontChainAcrossPeople(t *testing.T) {
 	code, resp, raw = f.post(t, body(message{id: "2000000000000000061", author: testRelayApp, username: "wonheebot", bot: true,
 		files: []string{"b.png"}}, request{}))
 	expect(t, "next post through the app", code, resp, raw, http.StatusOK, string(statusIgnored), reasonNoTrigger, "")
+}
+
+// Chaining is off for them, but a reply is the app's own word: a relay app
+// replying to its own post continues that set, as per-idol bots post a drop.
+// Another app replying to it is somebody else, and doesn't.
+func TestRelayAppRepliesContinueItsOwnSet(t *testing.T) {
+	f := newIngestFixture(t)
+	code, resp, raw := f.post(t, body(message{id: "2000000000000000062", author: testRelayApp, username: "kyujinbot", bot: true,
+		mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
+	expect(t, "relay app post", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+
+	code, resp, raw = f.post(t, body(message{id: "2000000000000000063", author: testRelayApp, username: "kyujinbot", bot: true,
+		files: []string{"b.png"}, replyTo: "2000000000000000062"}, request{}))
+	expect(t, "its reply to itself", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if f.postFor(t, "2000000000000000063").GetString("set") != f.postFor(t, "2000000000000000062").GetString("set") {
+		t.Error("the app's reply didn't join the set its post opened")
+	}
+
+	code, resp, raw = f.post(t, body(message{id: "2000000000000000064", author: "1000000000000000078", username: "otherbot", bot: true,
+		files: []string{"c.png"}, replyTo: "2000000000000000062"}, request{}))
+	expect(t, "another app's reply", code, resp, raw, http.StatusOK, string(statusIgnored), reasonNoTrigger, "")
 }
 
 func TestIngestAPIMentionWithoutLinesTriesTheText(t *testing.T) {

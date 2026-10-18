@@ -287,6 +287,23 @@ type poster struct {
 	// under somebody else's name.
 	key     string
 	relayed bool // posted by an app or webhook on someone's behalf
+	// app is the posting app's id when key is empty because Discord names only
+	// the app. It never chains bare messages together, but a reply from the
+	// same app to one of its own sets continues that set: replying is the
+	// app's own word that the two belong together — dedicated per-idol bots
+	// post a drop exactly that way — and the set is credited to the app
+	// either way, so nobody's post lands under someone else's name. Empty for
+	// a post the forwarding bot calls anonymous: it said there's nobody.
+	app string
+}
+
+// canReplyTo reports whether a reply by p may join set: the same person, or,
+// for a post tied to nobody, the same app replying to its own keyless set.
+func (p poster) canReplyTo(set Metadata) bool {
+	if p.key != "" {
+		return set.AuthorID == p.key
+	}
+	return p.app != "" && set.AuthorID == "" && set.AppID == p.app
 }
 
 // creditFor decides who a message is credited to. See creditFromMessage for the
@@ -308,6 +325,8 @@ func creditFor(in inboundMessage) poster {
 		p.key = ""
 		if credited, ok := creditFromPostedBy(msg); ok {
 			p.name, p.source, p.key = credited, "posted-by", "posted-by:"+strings.ToLower(credited)
+		} else {
+			p.app = msg.Author.ID.String()
 		}
 	}
 	return p
@@ -357,6 +376,7 @@ func ingestInbound(in inboundMessage) ingestResult {
 	}
 	stampMessage(&plan.metadata, msg, in.guildID)
 	plan.metadata.AuthorID = in.poster.key
+	plan.metadata.AppID = in.poster.app
 
 	if in.dryRun {
 		return dryRunVerdict(in, plan)
@@ -754,11 +774,12 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 	}
 
 	// Reply, by the same person, to a message that created a set: append to it.
-	// A reply to something else entirely can still be a plain follow-up in a
-	// drop — people reply to their own earlier message just for threading — so
-	// a miss here falls through to the chain check.
-	if replied := repliedTo(msg); replied != 0 && key != "" {
-		if remembered, found := lookupSet(replied.String()); found && remembered.AuthorID == key {
+	// A relay app's post that names nobody counts as the app's own here (see
+	// poster.app). A reply to something else entirely can still be a plain
+	// follow-up in a drop — people reply to their own earlier message just for
+	// threading — so a miss here falls through to the chain check.
+	if replied := repliedTo(msg); replied != 0 {
+		if remembered, found := lookupSet(replied.String()); found && in.poster.canReplyTo(remembered) {
 			return ingestPlan{metadata: remembered, items: items, joinsSet: true, ok: true, trigger: "reply"}
 		}
 	}

@@ -13,6 +13,9 @@ import (
 type Metadata struct {
 	MessageID string
 	AuthorID  string
+	// AppID is the app that posted the set's opening message, kept only when
+	// AuthorID is empty because no person could be named. See poster.app.
+	AppID string
 
 	Title    string
 	Idol     string // comma-separated idol names
