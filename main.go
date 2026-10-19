@@ -102,6 +102,9 @@ func main() {
 	// GDPR erasure on account deletion: anonymize the uploader credit, drop the
 	// public links rows and solely-owned collections the cascade leaves behind.
 	hooks.RegisterUserDeleteHooks(app)
+	// One name per person: email sign-up needs one, and the uploader name is
+	// copied onto the account (hooks/usernames.go).
+	hooks.RegisterUsernameHooks(app)
 	// Wired here to avoid a hooks → bot import cycle. The two announcers post
 	// through our own bot, so without it they aren't wired at all — otherwise
 	// each notice would sit in a batch for nothing, holding up restarts.
