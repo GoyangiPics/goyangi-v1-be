@@ -99,14 +99,14 @@ func TestUploaderFromMessage(t *testing.T) {
 	}
 }
 
-// A blocked uploader has to render as a deliberate skip, never as a failure:
-// the reaction is the poster's only signal, and ❌ / no-reaction would read as
-// "the bot broke" rather than "this was not ingested on purpose".
+// A blocked uploader has to render as a deliberate skip, never as a failure —
+// in the text, that is. The post itself gets no reaction: ⏭️ on somebody's
+// message read as a brush-off.
 func TestIngestOutcomeSkipped(t *testing.T) {
 	skipped := ingestOutcome{total: 4, skipped: "Not ingested — badposter is blocked from ingestion."}
 
-	if got := skipped.emoji(); got != emojiSkipped {
-		t.Errorf("emoji() = %q, want the skip marker %q", got, emojiSkipped)
+	if got := skipped.emoji(); got != "" {
+		t.Errorf("emoji() = %q, want no reaction", got)
 	}
 	if got := skipped.text(); got != "⏭️ Not ingested — badposter is blocked from ingestion." {
 		t.Errorf("text() = %q, want the skip text", got)

@@ -471,7 +471,7 @@ func TestIngestAPISkipsLikeTheBot(t *testing.T) {
 	for i, mention := range []string{testBotUser, testOurBot} {
 		code, resp, raw := f.post(t, body(message{id: fmt.Sprintf("200000000000000003%d", i), content: "<@" + mention + "> look",
 			mentionRoles: []string{testRole}, files: []string{"y.png"}}, request{roles: yujin}))
-		expect(t, "ping + mention of "+mention, code, resp, raw, http.StatusOK, string(statusSkipped), reasonReannouncement, "skipped")
+		expect(t, "ping + mention of "+mention, code, resp, raw, http.StatusOK, string(statusSkipped), reasonReannouncement, "")
 	}
 
 	// An uploader who turned off automatic import.
@@ -482,7 +482,7 @@ func TestIngestAPISkipsLikeTheBot(t *testing.T) {
 	mustSaveRecord(t, f.app, u)
 	code, resp, raw := f.post(t, body(message{id: "2000000000000000035", author: "1000000000000000098", username: "optedout",
 		mentionRoles: []string{testRole}, files: []string{"y.png"}}, request{roles: yujin}))
-	expect(t, "opted out", code, resp, raw, http.StatusOK, string(statusSkipped), reasonOptedOut, "skipped")
+	expect(t, "opted out", code, resp, raw, http.StatusOK, string(statusSkipped), reasonOptedOut, "")
 
 	if n := f.count(t, "contents"); n != 0 {
 		t.Errorf("%d posts created, want none", n)
@@ -1116,7 +1116,7 @@ func TestManualAnswersArePerRequest(t *testing.T) {
 
 	m := message{id: "2000000000000000530", files: []string{"a.png"}}
 	code, resp, raw := f.manual(t, manualBody(m, "blockedmod", modRoles, []string{"Yujin"}, nil))
-	expect(t, "blocked requester", code, resp, raw, http.StatusOK, string(statusSkipped), reasonBlocked, "skipped")
+	expect(t, "blocked requester", code, resp, raw, http.StatusOK, string(statusSkipped), reasonBlocked, "")
 	code, resp, raw = f.manual(t, manualBody(m, "mod", modRoles, []string{"Yujin"}, nil))
 	expect(t, "next requester", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
 }

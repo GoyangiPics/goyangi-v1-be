@@ -108,7 +108,7 @@ const (
 	statusIgnored ingestStatus = "ignored"
 	// Already handled: a redelivery, a retry, or the other door got there first.
 	statusDuplicate ingestStatus = "duplicate"
-	// Deliberately not ingested — marked ⏭️ so the poster knows it was a choice.
+	// Deliberately not ingested. Left unmarked, like a failure — see ingestOutcome.emoji.
 	statusSkipped ingestStatus = "skipped"
 	// At least one item became a post.
 	statusIngested ingestStatus = "ingested"
@@ -155,16 +155,12 @@ type ingestResult struct {
 }
 
 // reaction is the marker for the triggering message, or "" for none. See
-// ingestOutcome.emoji for why failures get nothing.
+// ingestOutcome.emoji for why only ingestion gets one.
 func (r ingestResult) reaction() string {
-	switch r.status {
-	case statusSkipped:
-		return emojiSkipped
-	case statusIngested:
+	if r.status == statusIngested {
 		return emojiSuccess
-	default:
-		return ""
 	}
+	return ""
 }
 
 // onMessageCreate feeds the passive triggers (1–3) from our own gateway.
@@ -690,7 +686,7 @@ type ingestPlan struct {
 	// ignored is the reason code when !ok.
 	ignored string
 	// skipped is set (to a reason code) when the message is deliberately NOT
-	// ingested and the poster should see ⏭️ for it, rather than silence.
+	// ingested, as distinct from merely ignored.
 	skipped string
 }
 
@@ -704,16 +700,15 @@ func prepareIngestion(in inboundMessage) ingestPlan {
 	// A message carrying BOTH a role ping and an @-mention of goyangi's bot is
 	// someone re-announcing content that is already in the library: the pings
 	// are for people, and ingesting again would duplicate the records. Checked
-	// before everything else, media included — the ⏭️ is the answer either way.
+	// before everything else, media included — the answer is a skip either way.
 	//
 	// An @-mention alone still ingests (with `key: value` metadata) and a role
 	// ping alone still ingests passively — only the combination is a skip. The
 	// cost is that "@bot + metadata lines + an incidental role ping so people see
-	// it" used to work and now won't; the ⏭️ reaction is what keeps that
-	// discoverable instead of mysterious.
+	// it" used to work and now won't, silently.
 	//
 	// Returns before claimMessage, so a redelivery reports the skip again —
-	// re-reacting is idempotent, so no dedupe is needed.
+	// nothing is done for it, so no dedupe is needed.
 	if mentioned && len(msg.MentionRoles) > 0 {
 		return ingestPlan{skipped: reasonReannouncement}
 	}
@@ -1096,7 +1091,7 @@ type ingestOutcome struct {
 // because that string is message content, where custom emoji need the
 // `<:name:id>` tag form instead.
 //
-// Only three outcomes are marked, and none of them is a complaint:
+// Only ingestion is marked, so that no mark is ever a complaint:
 //
 //   - Anything ingested → the goyangi emoji, whether or not every item made it.
 //     A partial run used to react ⚠️, which reads in-channel as the bot telling
@@ -1107,14 +1102,13 @@ type ingestOutcome struct {
 //   - A total failure → NOTHING, for the same reason ❌ was never used: stamping
 //     one on someone's post is a public telling-off, and the detail is in
 //     system_logs either way.
-//   - A deliberate skip → ⏭️, the one "we didn't ingest this" worth making
-//     visible, otherwise a blocked poster keeps re-posting into a void. Same
-//     marker the ping+mention skip uses.
+//   - A deliberate skip → NOTHING too. It used to get ⏭️ so a blocked poster
+//     wouldn't keep re-posting into a void, but on somebody's post it read as
+//     a brush-off. The skip is still in the logs (stdout) and in the ephemeral
+//     reply to a manual request.
 func (o ingestOutcome) emoji() string {
 	switch {
-	case o.skipped != "":
-		return emojiSkipped
-	case o.fatal != "" || o.created == 0:
+	case o.skipped != "" || o.fatal != "" || o.created == 0:
 		return ""
 	default:
 		return emojiSuccess
@@ -1183,8 +1177,7 @@ func runIngestion(metadata Metadata, items []MediaItem, isReply, automatic bool)
 	// post the same thing to Discord. Automatic runs only: a deliberate
 	// "Ingest this message" or /reupload is someone asking for exactly this.
 	// Any credited uploader opting out skips the message — it is their post
-	// either way, and a message credits one uploader in practice. The ⏭️ this
-	// earns is the feedback that it was a choice, not a failure.
+	// either way, and a message credits one uploader in practice.
 	if automatic && len(rel.optedOutUploaders) > 0 {
 		outcome.skipped = fmt.Sprintf("Not imported — %s turned off automatic import from Discord.",
 			strings.Join(rel.optedOutUploaders, ", "))
@@ -1307,8 +1300,7 @@ func logOutcome(o ingestOutcome, msgURL string) {
 
 	switch {
 	// Expected behaviour, so stdout only — system_logs is for problems, not an
-	// audit trail (see the note at the top of this function). The ⏭️ reaction is
-	// what tells the poster.
+	// audit trail (see the note at the top of this function).
 	case o.skipped != "":
 		slog.Info("ingest: skipped", "reason", o.skipped, "discord", msgURL)
 	case o.fatal != "":

@@ -46,8 +46,8 @@ goyangi.pics@protonmail.com.
    `POST https://api.goyangi.pics/api/ingest/discord/messages` with the raw
    message, the names of its pinged roles, and your bot's user id — **one
    message at a time per channel, in the order they arrive** (section 7).
-3. React as the answer's `reaction` says: `success` → ✅, `skipped` → ⏭️,
-   anything else → nothing.
+3. React as the answer's `reaction` says: `success` → ✅, anything else →
+   nothing.
 4. Posts your bot makes for people (anonymous ones included) carry a `relay`
    block saying whose they are (section 8).
 5. Optionally, offer "Archive on goyangi" on any message, like goyangi's own
@@ -76,9 +76,7 @@ goyangi.pics@protonmail.com.
   from your general forwarder.
 - **Only messages that could carry media**, to save requests: an attachment, or
   `http` anywhere in `content`. goyangi only recognises links written with
-  `http://` or `https://`, so this filter loses nothing. (One cosmetic
-  exception: a role ping plus an @-mention of your bot gets ⏭️ even without
-  media; skipping it costs only that reaction.)
+  `http://` or `https://`, so this filter loses nothing.
 - **In order, one at a time per channel** — see section 7. This matters:
   follow-ups and replies only work when goyangi gets a channel's messages in
   the order they were posted.
@@ -260,7 +258,7 @@ async function settle(m, res) {
     return
   }
   const verdict = await res.json()
-  const emoji = { success: '✅', skipped: '⏭️' }[verdict.reaction]
+  const emoji = { success: '✅' }[verdict.reaction]
   // Over REST, so an uncached channel or message doesn't matter.
   if (emoji) await client.rest.put(Routes.channelMessageOwnReaction(m.channel_id, m.id, encodeURIComponent(emoji)))
 }
@@ -386,7 +384,7 @@ async def settle(m, status, verdict):
     if status != 200 or not verdict:
         logging.warning("goyangi: no verdict for %s (HTTP %s): %s", m["id"], status, verdict)
         return
-    emoji = {"success": "✅", "skipped": "⏭️"}.get(verdict.get("reaction"))
+    emoji = {"success": "✅"}.get(verdict.get("reaction"))
     if emoji:
         channel = client.get_partial_messageable(int(m["channel_id"]))
         await channel.get_partial_message(int(m["id"])).add_reaction(emoji)
@@ -454,9 +452,9 @@ Unknown fields may appear later; ignore them.
 | `status` | `reason` | Meaning | `reaction` |
 |---|---|---|---|
 | `ingested` | — | At least one item became a post. Partial runs count: check `failed`. | `success` |
-| `skipped` | `reannouncement` | A role ping plus an @-mention of the bot: "already on the site". | `skipped` |
-| | `opted_out` | The credited uploader turned off automatic import from Discord. | `skipped` |
-| | `blocked` | goyangi's admin blocked the credited uploader. | `skipped` |
+| `skipped` | `reannouncement` | A role ping plus an @-mention of the bot: "already on the site". | `""` |
+| | `opted_out` | The credited uploader turned off automatic import from Discord. | `""` |
+| | `blocked` | goyangi's admin blocked the credited uploader. | `""` |
 | `ignored` | `channel_not_listed` | Not an archived channel (threads have their own ids). | `""` |
 | | `no_media` | Nothing goyangi can archive in it. | `""` |
 | | `no_trigger` | Media, but nothing to go on: no usable role ping or `idol:`/`group:` lines, not a reply or follow-up, and no idol named in the text. | `""` |
@@ -470,12 +468,12 @@ Unknown fields may appear later; ignore them.
 | `processing` | `still_running` | Only on a POST's 202. | `""` |
 | `denied` | … | Only manual requests (section 9). | `""` |
 
-**Reactions:** `success` is ✅ (or an emoji of your own), `skipped` is ⏭️, and
-an empty string means leave nothing. A failure is deliberately *not* marked
-with ❌: a red mark on someone's post reads as a public telling-off, and the
-problem is goyangi's to look into, not the poster's. ⏭️ is shown because
-otherwise someone who opted out, or was blocked, keeps re-posting without
-knowing why.
+**Reactions:** `success` is ✅ (or an emoji of your own), and an empty string
+means leave nothing. A failure is deliberately *not* marked with ❌: a red mark
+on someone's post reads as a public telling-off, and the problem is goyangi's
+to look into, not the poster's. A skip isn't marked either — it used to get
+`skipped` (⏭️), which read as a brush-off; that value is no longer sent, so a
+bot still mapping it needs no change.
 
 New `status` and `reason` values may be added later. Treat any you don't
 recognise as "no reaction".
@@ -798,7 +796,7 @@ client.on(Events.InteractionCreate, async (i) => {
       if (!answer) console.warn('goyangi: no answer', target.messageId, res.status, await res.text())
 
       // The reaction first: it's the answer that survives the token expiring.
-      const emoji = { success: '✅', skipped: '⏭️' }[answer?.reaction]
+      const emoji = { success: '✅' }[answer?.reaction]
       if (emoji) {
         await client.rest.put(Routes.channelMessageOwnReaction(target.channelId, target.messageId, encodeURIComponent(emoji)))
       }
@@ -1073,7 +1071,7 @@ empty set is left behind. Posts are dated when goyangi archives them unless a
 - [ ] HTTP timeout 30–40 seconds.
 - [ ] Retry timeouts, 5xx, 429 and 503 with backoff for at least 30 minutes; never retry 400, 401, 413 or a 404 on POST.
 - [ ] After a 202, poll the GET for up to an hour; on a 404 there, resend the POST.
-- [ ] React from `reaction`: `success` → ✅, `skipped` → ⏭️, anything else → nothing.
+- [ ] React from `reaction`: `success` → ✅, anything else → nothing.
 - [ ] Never let a failed request crash the bot. Never log the token.
 - [ ] Optional: "Archive on goyangi" (section 9), limited to the allowed roles, sending the username — not the display name.
 - [ ] Shadow-run with `"dry_run": true` before going live.

@@ -258,7 +258,7 @@ and pushed to R2 exactly like a web-UI upload):
   but nothing can recover content that was never collected.
 
 A message with **both** a role ping and an @-mention of the bot is deliberately
-**skipped** and marked ⏭️ (`DISCORD_EMOJI_SKIPPED`). That is the "already
+**skipped**, with no reaction. That is the "already
 uploaded on the site by hand" signal: ping the roles so people see it, ping the
 bot so it stays out. Either trigger on its own still ingests as above.
 
@@ -298,8 +298,8 @@ tags are created on the fly, while idols/groups must already exist; names that
 don't resolve are logged to `system_logs`.
 
 The reaction on the message says only whether anything was taken —
-`DISCORD_EMOJI_SUCCESS` if it was, nothing at all if it wasn't, `⏭️` if the
-skip was deliberate. A partial run reacts the same as a complete one: what
+`DISCORD_EMOJI_SUCCESS` if it was, nothing at all if it wasn't — deliberate
+skips included. A partial run reacts the same as a complete one: what
 failed is a `system_logs` warning for whoever runs the bot, not a mark on the
 poster's message.
 

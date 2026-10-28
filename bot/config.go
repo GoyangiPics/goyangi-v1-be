@@ -104,15 +104,13 @@ func snowflakeEnv(key, fallback string) snowflake.ID {
 // bot's, following the same production-default convention as the values above.
 var (
 	emojiSuccess = envOr("DISCORD_EMOJI_SUCCESS", "goyangi_success:1530520100409573447")
-	// Neither of these is reacted with any more, and both are kept only to say
-	// so: ❌ reads as "the bot broke" and ⚠️ as a public correction, when in both
+	// None of these is reacted with any more, and they are kept only to say so:
+	// ❌ reads as "the bot broke" and ⚠️ as a public correction, when in both
 	// cases the thing that needs acting on is a system_logs entry, not a mark on
-	// somebody's message. DISCORD_EMOJI_WARNING / DISCORD_EMOJI_FAILURE are
-	// therefore inert.
+	// somebody's message. ⏭️ on a deliberate skip went the same way: on someone's
+	// post it read as a brush-off. DISCORD_EMOJI_WARNING / DISCORD_EMOJI_FAILURE /
+	// DISCORD_EMOJI_SKIPPED are therefore inert.
 	emojiFailure = envOr("DISCORD_EMOJI_FAILURE", "❌")
-	// emojiSkipped marks a message we deliberately did not ingest. Distinct from
-	// the two above: it is not a complaint, it is the only signal a blocked
-	// poster gets that the silence is deliberate.
 	emojiSkipped = envOr("DISCORD_EMOJI_SKIPPED", "⏭️")
 )
 

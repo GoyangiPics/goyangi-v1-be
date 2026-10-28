@@ -197,7 +197,8 @@ type ingestResponse struct {
 	Status string `json:"status"`
 	// A stable code (ingest.go's reason* constants); see docs/ingest-api.md.
 	Reason string `json:"reason,omitempty"`
-	// The marker to leave on the message: "success", "skipped" or "" for none.
+	// The marker to leave on the message: "success", or "" for none. "skipped"
+	// is no longer sent — a skip is left unmarked (ingestOutcome.emoji).
 	Reaction string `json:"reaction"`
 	Created  int    `json:"created"`
 	Total    int    `json:"total"`
@@ -426,11 +427,8 @@ func responseFor(messageID string, r ingestResult) ingestResponse {
 		Unresolved: r.outcome.missing,
 		Preview:    r.preview,
 	}
-	switch r.status {
-	case statusIngested:
+	if r.status == statusIngested {
 		resp.Reaction = "success"
-	case statusSkipped:
-		resp.Reaction = "skipped"
 	}
 	if r.setID != "" {
 		resp.Set = publicBaseURL + "/set/" + r.setID
