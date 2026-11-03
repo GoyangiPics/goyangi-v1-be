@@ -7,13 +7,16 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/hook"
 )
 
 // Supervised deploys.
@@ -30,6 +33,10 @@ import (
 // every request arrives from 127.0.0.1, so a route would need its own secret.
 // A pipe only the parent holds needs nothing, and works the same on Windows,
 // where a process can't be sent SIGTERM.
+//
+// On Railway there is no updater: a deploy sends SIGTERM and kills the process
+// RAILWAY_DEPLOYMENT_DRAINING_SECONDS later. The same wait runs then, from
+// PocketBase's OnTerminate, bounded by that deadline (docs/railway-hosting.md).
 
 // supervisedEnv is set to "1" by the updater on the child it starts.
 const supervisedEnv = "GOYANGI_SUPERVISED"
@@ -59,10 +66,12 @@ func Draining() bool {
 // hooks can't import bot without a cycle.
 var BotBusy func() int
 
-// RegisterDrain wires the supervised-restart protocol. A no-op unless the
-// process was started by the updater, so `go run . serve` is unaffected.
+// RegisterDrain wires the supervised-restart protocol, or on Railway the
+// SIGTERM drain. A no-op otherwise, so `go run . serve` is unaffected.
 func RegisterDrain(app *pocketbase.PocketBase) {
-	if os.Getenv(supervisedEnv) != "1" {
+	supervised := os.Getenv(supervisedEnv) == "1"
+	budget := railwayDrainBudget()
+	if !supervised && budget == 0 {
 		return
 	}
 
@@ -75,10 +84,58 @@ func RegisterDrain(app *pocketbase.PocketBase) {
 		return e.Next()
 	})
 
-	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		go listenSupervisor(app)
-		return e.Next()
+	if supervised {
+		app.OnServe().BindFunc(func(e *core.ServeEvent) error {
+			go listenSupervisor(app)
+			return e.Next()
+		})
+		return
+	}
+
+	// Railway redeploys by sending SIGTERM and kills the process once the
+	// service's draining time is up. PocketBase turns SIGTERM into OnTerminate;
+	// this handler runs ahead of its graceful shutdown, so the HTTP server keeps
+	// answering while the in-flight work finishes. Anything still running at
+	// the deadline is re-queued at a later boot (encode recovery) or retried by
+	// its owner.
+	var once sync.Once
+	app.OnTerminate().Bind(&hook.Handler[*core.TerminateEvent]{
+		Id:       "goyangiRailwayDrain",
+		Priority: -100,
+		Func: func(e *core.TerminateEvent) error {
+			once.Do(func() { drainForRailway(budget) })
+			return e.Next()
+		},
 	})
+}
+
+// railwayDrainMargin is kept back from Railway's draining time for PocketBase's
+// own shutdown: stopping the HTTP server, flushing R2 deletes, closing the
+// databases.
+const railwayDrainMargin = 15 * time.Second
+
+// railwayDrainBudget is how long a SIGTERM may wait for in-flight work:
+// RAILWAY_DEPLOYMENT_DRAINING_SECONDS (a service variable on Railway), minus
+// the margin. Zero when unset or too short to be worth waiting.
+func railwayDrainBudget() time.Duration {
+	secs, err := strconv.Atoi(strings.TrimSpace(os.Getenv("RAILWAY_DEPLOYMENT_DRAINING_SECONDS")))
+	if err != nil {
+		return 0
+	}
+	return max(time.Duration(secs)*time.Second-railwayDrainMargin, 0)
+}
+
+func drainForRailway(budget time.Duration) {
+	draining.Store(true)
+	log.Printf("🔄 deploy: SIGTERM — refusing new uploads, waiting up to %s for work in flight", budget)
+	time.Sleep(drainGrace)
+	if waitIdle(0, time.Now().Add(budget-drainGrace)) {
+		log.Printf("🔄 deploy: nothing in flight — shutting down")
+		return
+	}
+	busy := busyReport()
+	log.Printf("⚠️  deploy: draining time up — shutting down with %s still in flight", busy)
+	LogServerWarning("Deploy cut off work in flight", map[string]any{"inFlight": busy})
 }
 
 func listenSupervisor(app *pocketbase.PocketBase) {
@@ -105,24 +162,28 @@ func listenSupervisor(app *pocketbase.PocketBase) {
 // and exits. It never returns.
 func drainAndExit(app *pocketbase.PocketBase) {
 	log.Printf("🔄 deploy: restart requested — waiting for uploads and bot work to finish")
-	waitIdle(drainQuietPeriod)
+	waitIdle(drainQuietPeriod, time.Time{})
 
 	draining.Store(true)
 	log.Printf("🔄 deploy: idle — refusing new uploads while the last requests finish")
 	time.Sleep(drainGrace)
-	waitIdle(0)
+	waitIdle(0, time.Time{})
 
 	log.Printf("🔄 deploy: nothing in flight — exiting for restart")
 	terminate(app)
 }
 
 // waitIdle blocks until busyReport has been empty for quiet (or just once, for
-// quiet == 0). It never gives up: a long queue delays the deploy, never the
-// uploads in it.
-func waitIdle(quiet time.Duration) {
+// quiet == 0) and reports true. With a zero deadline it never gives up: a long
+// queue delays the deploy, never the uploads in it. Past a deadline it reports
+// false.
+func waitIdle(quiet time.Duration, deadline time.Time) bool {
 	var idleSince time.Time
 	lastReport := time.Now()
 	for {
+		if !deadline.IsZero() && time.Now().After(deadline) {
+			return false
+		}
 		busy := busyReport()
 		switch {
 		case busy != "":
@@ -135,7 +196,7 @@ func waitIdle(quiet time.Duration) {
 			idleSince = time.Now()
 		}
 		if busy == "" && time.Since(idleSince) >= quiet {
-			return
+			return true
 		}
 		time.Sleep(drainPoll)
 	}
