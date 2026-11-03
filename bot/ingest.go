@@ -939,22 +939,79 @@ func creditFromMessage(msg discord.Message) (name, source, userID string) {
 //
 //	Posted by: Trailsofjamie
 //
-// Case-insensitive, and tolerant of Discord bold/italics around the label or
-// the name, since an app is free to render it `**Posted by:** name`. The name
-// runs to the end of the line; cleanPostedByName trims the decoration off it.
-var postedByRegexp = regexp.MustCompile(`(?im)^\s*[*_]*posted by[*_]*\s*:\s*(.+?)\s*$`)
+// Case-insensitive, and tolerant of how an app may render it: Discord bold or
+// italics around the label or the name (`**Posted by:** name`), a block prefix
+// in front of the line — small text `-# `, a heading `### `, a quote `> ` — and
+// a dash or full-width colon in place of the colon, or no separator at all.
+// The name runs to the end of the same line; cleanPostedByName trims the
+// decoration off it. Still anchored to the start of a line, so "posted by" in a
+// caption's prose doesn't count.
+var postedByRegexp = regexp.MustCompile(`(?im)^[ \t]*(?:-#|#{1,3}|>{1,3})?[ \t]*[*_~]*posted by[*_~]*(?:[ \t]*[:：\-–—][ \t]*|[ \t]+)(.+?)[ \t]*$`)
+
+// mentionRegexp is a user mention as Discord sends it in message text.
+var mentionRegexp = regexp.MustCompile(`^<@!?(\d+)>$`)
 
 // postedByName returns the name a relay app credited the post to, or "" when
 // the message carries no such line.
 //
-// Looks in the message text first, then in each embed's description, fields
-// and footer — an app can put its credit line in any of them, and a field named
-// "Posted by" with the name as its value is the same statement in a different
-// shape, so it is joined back into one line before matching.
+// An app can put its credit line almost anywhere a message holds text, and a
+// miss here credits the post to the app instead of the person, so every place
+// is read: the message text, each embed's author, title, description, fields
+// and footer — a field named "Posted by" with the name as its value is the
+// same statement in a different shape, so it is joined back into one line —
+// the text blocks of a Components V2 message, whose plain `content` is empty,
+// and the same again for a forwarded message's snapshot.
+//
+// A credit written as a mention (`<@id>`) is resolved through the message's
+// mention list to the person's display name, which is what Discord shows in
+// its place; see postedByNames for the handle behind it.
 func postedByName(msg discord.Message) string {
-	texts := []string{msg.Content}
-	for _, em := range msg.Embeds {
-		texts = append(texts, em.Description)
+	names := postedByNames(msg)
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0]
+}
+
+// postedByNames is postedByName's credit as every name it might go by: the
+// written name, or for a mention the person's display name then their handle.
+func postedByNames(msg discord.Message) []string {
+	for _, text := range messageTexts(msg) {
+		m := postedByRegexp.FindStringSubmatch(text)
+		if m == nil {
+			continue
+		}
+		name := cleanPostedByName(m[1])
+		if name == "" {
+			continue
+		}
+		if mention := mentionRegexp.FindStringSubmatch(name); mention != nil {
+			if names := mentionedNames(msg, mention[1]); len(names) > 0 {
+				return names
+			}
+			continue // a mention of someone the message doesn't carry
+		}
+		return []string{name}
+	}
+	return nil
+}
+
+// messageTexts is every piece of text a message shows, in reading order.
+func messageTexts(msg discord.Message) []string {
+	texts := partialTexts(msg.Content, msg.Embeds, msg.AllComponents())
+	for _, snap := range msg.MessageSnapshots {
+		texts = append(texts, partialTexts(snap.Message.Content, snap.Message.Embeds, snap.Message.AllComponents())...)
+	}
+	return texts
+}
+
+func partialTexts(content string, embeds []discord.Embed, components func(func(discord.Component) bool)) []string {
+	texts := []string{content}
+	for _, em := range embeds {
+		if em.Author != nil {
+			texts = append(texts, em.Author.Name)
+		}
+		texts = append(texts, em.Title, em.Description)
 		for _, f := range em.Fields {
 			texts = append(texts, f.Name+": "+f.Value)
 		}
@@ -962,20 +1019,44 @@ func postedByName(msg discord.Message) string {
 			texts = append(texts, em.Footer.Text)
 		}
 	}
-	for _, text := range texts {
-		if m := postedByRegexp.FindStringSubmatch(text); m != nil {
-			if name := cleanPostedByName(m[1]); name != "" {
-				return name
-			}
+	for c := range components {
+		if td, ok := c.(discord.TextDisplayComponent); ok {
+			texts = append(texts, td.Content)
 		}
 	}
-	return ""
+	return texts
+}
+
+// mentionedNames is the display name and handle of a user the message
+// mentions, looked up in its own mention list and its snapshots'.
+func mentionedNames(msg discord.Message, userID string) []string {
+	lists := [][]discord.User{msg.Mentions}
+	for _, snap := range msg.MessageSnapshots {
+		lists = append(lists, snap.Message.Mentions)
+	}
+	for _, users := range lists {
+		for _, u := range users {
+			if u.ID.String() != userID {
+				continue
+			}
+			var names []string
+			if u.GlobalName != nil && *u.GlobalName != "" {
+				names = append(names, *u.GlobalName)
+			}
+			if u.Username != "" && (len(names) == 0 || !strings.EqualFold(names[0], u.Username)) {
+				names = append(names, u.Username)
+			}
+			return names
+		}
+	}
+	return nil
 }
 
 // cleanPostedByName strips the markdown and mention decoration a credit line
-// may wrap the name in: bold or italic markers, backticks, or a leading @.
+// may wrap the name in: bold, italic or strikethrough markers, backticks, or a
+// leading @.
 func cleanPostedByName(raw string) string {
-	name := strings.Trim(raw, "*_` \t")
+	name := strings.Trim(raw, "*_~` \t")
 	name = strings.TrimPrefix(name, "@")
 	return strings.TrimSpace(name)
 }
@@ -1020,13 +1101,19 @@ func postedByCandidates(name string) []string {
 // The canonical `name` is returned rather than the line's text so that
 // resolveRelations' lookupOrCreateByName lands on the same record.
 func creditFromPostedBy(msg discord.Message) (name string, ok bool) {
-	posted := postedByName(msg)
-	if posted == "" {
+	names := postedByNames(msg)
+	if len(names) == 0 {
 		return "", false
 	}
+	posted := names[0]
 	// Candidates are tried in order, so the exact name still wins when both a
-	// decorated and an undecorated profile exist.
-	rec, err := findUploaderByNames(postedByCandidates(posted)...)
+	// decorated and an undecorated profile exist, and a mention's display name
+	// before the handle behind it.
+	var candidates []string
+	for _, n := range names {
+		candidates = append(candidates, postedByCandidates(n)...)
+	}
+	rec, err := findUploaderByNames(candidates...)
 	if err != nil {
 		slog.Warn("ingest: could not look up posted-by name", "name", posted, "err", err)
 		return "", false

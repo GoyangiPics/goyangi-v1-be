@@ -565,6 +565,19 @@ func TestRelayAppPostsDontChainAcrossPeople(t *testing.T) {
 	expect(t, "next post through the app", code, resp, raw, http.StatusOK, string(statusIgnored), reasonNoTrigger, "")
 }
 
+// The miss that started this: a relay app's small-text credit line, a display
+// name with an emoji, and an uploader named after the plain handle.
+func TestRelayAppPostedByLineCreditsThePerson(t *testing.T) {
+	f := newIngestFixture(t)
+	f.linkedUploader(t, "kuro", true)
+	code, resp, raw := f.post(t, body(message{id: "2000000000000000070", author: testRelayApp, username: "Kyujin Bot", bot: true,
+		content: "-# Posted by: kuro🍊", mentionRoles: []string{testRole}, files: []string{"a.png"}}, request{roles: yujin}))
+	expect(t, "relay app post", code, resp, raw, http.StatusOK, string(statusIngested), "", "success")
+	if got := f.uploaderOf(t, f.postFor(t, "2000000000000000070")); got != "kuro" {
+		t.Errorf("credited to %q, want kuro", got)
+	}
+}
+
 // Chaining is off for them, but a reply is the app's own word: a relay app
 // replying to its own post continues that set, as per-idol bots post a drop.
 // Another app replying to it is somebody else, and doesn't.

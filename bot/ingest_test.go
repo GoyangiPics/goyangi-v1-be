@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/disgoorg/disgo/discord"
@@ -223,6 +224,76 @@ func TestPostedByName(t *testing.T) {
 			msg:  embedWith(discord.Embed{Footer: &discord.EmbedFooter{Text: "Posted by: nabi"}}),
 			want: "nabi",
 		},
+		// The shapes kuro🍊's post could have taken, none of which used to parse.
+		{
+			name: "small-text line",
+			msg:  discord.Message{Content: "-# Posted by: kuro🍊"},
+			want: "kuro🍊",
+		},
+		{
+			name: "heading and quote prefixes",
+			msg:  discord.Message{Content: "### Posted by: kuro🍊\n> posted by: other"},
+			want: "kuro🍊",
+		},
+		{
+			name: "dash, full-width colon, or no separator",
+			msg:  discord.Message{Content: "Posted by — kuro🍊"},
+			want: "kuro🍊",
+		},
+		{
+			name: "no separator",
+			msg:  discord.Message{Content: "Posted by kuro🍊"},
+			want: "kuro🍊",
+		},
+		{
+			name: "embed author",
+			msg:  embedWith(discord.Embed{Author: &discord.EmbedAuthor{Name: "Posted by: kuro🍊"}}),
+			want: "kuro🍊",
+		},
+		{
+			name: "embed title",
+			msg:  embedWith(discord.Embed{Title: "Posted by kuro🍊"}),
+			want: "kuro🍊",
+		},
+		{
+			// Components V2: `content` is empty and the text lives in blocks.
+			name: "text display inside a container",
+			msg: discord.Message{Components: []discord.LayoutComponent{discord.ContainerComponent{
+				Components: []discord.ContainerSubComponent{
+					discord.TextDisplayComponent{Content: "Winter - aespa"},
+					discord.TextDisplayComponent{Content: "-# Posted by: kuro🍊"},
+				},
+			}}},
+			want: "kuro🍊",
+		},
+		{
+			name: "forwarded message",
+			msg: discord.Message{MessageSnapshots: []discord.MessageSnapshot{{
+				Message: discord.PartialMessage{Content: "Posted by: kuro🍊"},
+			}}},
+			want: "kuro🍊",
+		},
+		{
+			// Discord shows a mention as the person's display name.
+			name: "mention resolves to the display name",
+			msg: discord.Message{
+				Content:  "Posted by: <@1000000000000000042>",
+				Mentions: []discord.User{{ID: 1000000000000000042, Username: "kuro4810", GlobalName: ptr("kuro🍊")}},
+			},
+			want: "kuro🍊",
+		},
+		{
+			name: "mention of someone the message doesn't carry",
+			msg:  discord.Message{Content: "Posted by: <@1000000000000000042>"},
+			want: "",
+		},
+		{
+			// The label alone, name on the next line, is not a credit: the next
+			// line could be anything.
+			name: "name must be on the same line",
+			msg:  discord.Message{Content: "Posted by\nWinter - aespa"},
+			want: "",
+		},
 		{
 			// The anonymous case, and the one that must not match: the app never
 			// wrote the line, so there is nothing to credit.
@@ -279,5 +350,17 @@ func TestPostedByCandidates(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A mention's credit is tried as the display name, then the handle behind it.
+func TestPostedByNamesForAMention(t *testing.T) {
+	msg := discord.Message{
+		Content:  "Posted by: <@!1000000000000000042>",
+		Mentions: []discord.User{{ID: 1000000000000000042, Username: "kuro4810", GlobalName: ptr("kuro🍊")}},
+	}
+	got := postedByNames(msg)
+	if want := []string{"kuro🍊", "kuro4810"}; !slices.Equal(got, want) {
+		t.Errorf("postedByNames() = %v, want %v", got, want)
 	}
 }
