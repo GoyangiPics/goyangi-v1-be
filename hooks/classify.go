@@ -107,11 +107,23 @@ func probeVideoFrameCount(path string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	n, err := strconv.Atoi(strings.TrimSpace(string(out)))
-	if err != nil {
-		return 0, fmt.Errorf("unexpected probe output %q: %w", out, err)
+	return parseFrameCount(string(out))
+}
+
+// parseFrameCount reads the first count in ffprobe's `csv=p=0` output. Like
+// parseDimensions, it can't assume a single line: some files and builds repeat
+// the stream entry (FFmpeg 9 prints "421\n\n421" for some MP4s).
+func parseFrameCount(out string) (int, error) {
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(line), ","))
+		if line == "" {
+			continue
+		}
+		if n, err := strconv.Atoi(line); err == nil {
+			return n, nil
+		}
 	}
-	return n, nil
+	return 0, fmt.Errorf("unexpected probe output %q", out)
 }
 
 // filetypeForFrameCount is the whole decision, kept pure so it can be tested

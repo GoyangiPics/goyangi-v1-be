@@ -13,3 +13,25 @@ func TestFiletypeForFrameCount(t *testing.T) {
 		}
 	}
 }
+
+func TestParseFrameCount(t *testing.T) {
+	for _, tc := range []struct {
+		out  string
+		want int
+	}{
+		{"1\n", 1},
+		{"421\n\n421\n", 421}, // FFmpeg 9, repeated stream entry
+		{"37,\n", 37},
+		{"\nN/A\n12\n", 12},
+	} {
+		got, err := parseFrameCount(tc.out)
+		if err != nil || got != tc.want {
+			t.Errorf("parseFrameCount(%q) = %d, %v; want %d", tc.out, got, err, tc.want)
+		}
+	}
+	for _, bad := range []string{"", "\n\n", "N/A\n"} {
+		if _, err := parseFrameCount(bad); err == nil {
+			t.Errorf("parseFrameCount(%q): want an error", bad)
+		}
+	}
+}
