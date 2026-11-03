@@ -135,14 +135,13 @@ func (c *pbClient) postsCreditedTo(uploaderID string) ([]post, error) {
 
 // setsListing is the ids of the sets whose (derived) uploaders include uploaderID.
 //
-// Through the relation's `.id`: against the live API, a bare `uploader ?= "…"`
-// on this multi relation matches no set at all, while `uploader.id ?= "…"`
-// matches every one that lists it.
+// With `:each`, as hooks.setsListingUploader explains: a bare `uploader ?= "…"`
+// on this multi relation matches no set at all.
 func (c *pbClient) setsListing(uploaderID string) (map[string]bool, error) {
 	type set struct {
 		ID string `json:"id"`
 	}
-	sets, err := listAll[set](c, "contents_sets", "uploader.id ?= "+strconv.Quote(uploaderID), "created", "id")
+	sets, err := listAll[set](c, "contents_sets", "uploader:each ?= "+strconv.Quote(uploaderID), "created", "id")
 	if err != nil {
 		return nil, err
 	}

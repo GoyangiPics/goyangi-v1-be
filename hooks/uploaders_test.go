@@ -1,8 +1,12 @@
 package hooks
 
 import (
+	"net/http"
 	"reflect"
+	"slices"
 	"testing"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
 func TestSplitTrimStrings(t *testing.T) {
@@ -135,5 +139,69 @@ func TestAbsorbAliases(t *testing.T) {
 				t.Errorf("added = %#v, want %#v", gotAdded, tt.wantAdded)
 			}
 		})
+	}
+}
+
+// A merge has to find every set that lists the source, through the real filter
+// on the real schema: contents_sets.uploader is a multi relation, and a filter
+// that silently matches nothing there moves no set and lets the guard delete a
+// source that is still listed.
+func TestMergeUploadersRepointsTheSourcesSets(t *testing.T) {
+	f := newFixture(t)
+	uploaders, _ := f.app.FindCollectionByNameOrId("uploaders")
+	dupe := core.NewRecord(uploaders)
+	dupe.Set("name", "u1 on discord")
+	mustSave(t, f.app, dupe)
+	f.up["dupe"] = dupe.Id
+
+	// A set of the duplicate's own posts, and one shared with u2 that lists the
+	// duplicate without holding a post of theirs — a list from before it was
+	// derived, which no post move re-derives. The first goes to the target; the
+	// second only loses the duplicate, as the derived list would.
+	own := f.set(t, "dupe")
+	f.post(t, "dupe", own)
+	stale := f.set(t, "u2")
+	f.post(t, "u2", stale) // derives [u2]; the stale list is written after
+	staleSet := f.record(t, "contents_sets", stale)
+	staleSet.Set("uploader", []string{f.up["u2"], dupe.Id})
+	mustSave(t, f.app, staleSet)
+
+	f.do(t, "merge", http.MethodPost, "/api/admin/uploaders/merge",
+		`{"target":"`+f.up["u1"]+`","sources":["`+dupe.Id+`"]}`, "admin", 200, `"movedContent":1`, `"movedSets":2`)
+
+	if f.record(t, "uploaders", dupe.Id) != nil {
+		t.Error("the source survived the merge")
+	}
+	for set, want := range map[string][]string{
+		own:   {f.up["u1"]},
+		stale: {f.up["u2"]},
+	} {
+		if got := f.record(t, "contents_sets", set).GetStringSlice("uploader"); !slices.Equal(got, want) {
+			t.Errorf("set %s uploaders = %v, want %v", set, got, want)
+		}
+	}
+}
+
+// The step-4 guard's query on its own: it must see a source a set still lists,
+// alone or beside a co-uploader, or it deletes a referenced record.
+func TestSetsListingUploader(t *testing.T) {
+	f := newFixture(t)
+	solo := f.set(t, "u1")
+	shared := f.set(t, "u2", "u1")
+	f.set(t, "u2")
+
+	got, err := setsListingUploader(f.app, f.up["u1"], 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, r := range got {
+		ids = append(ids, r.Id)
+	}
+	slices.Sort(ids)
+	want := []string{solo, shared}
+	slices.Sort(want)
+	if !slices.Equal(ids, want) {
+		t.Errorf("sets listing u1 = %v, want %v", ids, want)
 	}
 }

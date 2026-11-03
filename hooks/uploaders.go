@@ -184,7 +184,7 @@ type mergeUploadersBody struct {
 // attached to it, so a self-service "that Discord name is me" would be a
 // one-click takeover of somebody else's uploads. The claim has to be a decision
 // someone makes, not one a caller asserts.
-func RegisterUploaderRoutes(app *pocketbase.PocketBase) {
+func RegisterUploaderRoutes(app core.App) {
 	app.OnServe().BindFunc(func(e *core.ServeEvent) error {
 		e.Router.POST("/api/admin/uploaders/merge", mergeUploaders(app)).
 			Bind(apis.RequireAuth("users"), requireAdmin())
@@ -210,7 +210,7 @@ func RegisterUploaderRoutes(app *pocketbase.PocketBase) {
 //
 // Storage is untouched: record ids and R2 keys are built from date/group/idol
 // (see generateContentId), so no object moves and no public URL changes.
-func mergeUploaders(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
+func mergeUploaders(app core.App) func(*core.RequestEvent) error {
 	return func(e *core.RequestEvent) error {
 		var body mergeUploadersBody
 		if err := e.BindBody(&body); err != nil {
@@ -296,13 +296,15 @@ func mergeUploaders(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 					movedContent++
 				}
 
-				// 2. contents_sets.uploader is a MULTI relation (sets accumulate
-				// co-uploaders as people add to them), so swap the id inside the
-				// array and dedupe — the target may already be on the set.
-				sets, err := txApp.FindRecordsByFilter(
-					"contents_sets", "uploader ?= {:id}", "created", maxReassignContents, 0,
-					dbx.Params{"id": src.Id},
-				)
+				// 2. contents_sets.uploader is a MULTI relation derived from the
+				// set's posts (hooks/ownership.go). The source comes off every set
+				// that lists it, and the target goes on where step 1 just gave it
+				// a post — not where the source was listed without one, a list
+				// from before it was derived, which the derived one wouldn't have.
+				// syncSet re-derives the sets of the moved posts once this commits
+				// anyway; doing it here, inside the transaction, is what lets the
+				// guard in step 4 find no set still listing the source.
+				sets, err := setsListingUploader(txApp, src.Id, maxReassignContents)
 				if err != nil {
 					return err
 				}
@@ -317,7 +319,16 @@ func mergeUploaders(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 						}
 						next = append(next, id)
 					}
-					set.Set("uploader", unionStrings(next, target.Id))
+					var targetPosts int
+					if err := txApp.DB().NewQuery(
+						"SELECT COUNT(*) FROM `contents` WHERE `set` = {:set} AND `uploader` = {:target}",
+					).Bind(dbx.Params{"set": set.Id, "target": target.Id}).Row(&targetPosts); err != nil {
+						return err
+					}
+					if targetPosts > 0 {
+						next = unionStrings(next, target.Id)
+					}
+					set.Set("uploader", next)
 					if err := txApp.SaveNoValidate(set); err != nil {
 						return err
 					}
@@ -355,13 +366,8 @@ func mergeUploaders(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 				).Bind(dbx.Params{"id": src.Id}).Row(&remainingContents); err != nil {
 					return err
 				}
-				// Multi-valued: stored as a JSON array, so this goes through the
-				// ORM's `?=` rather than a LIKE, which would also match an id that
-				// merely contained this one as a substring.
-				remainingSets, err := txApp.FindRecordsByFilter(
-					"contents_sets", "uploader ?= {:id}", "created", 1, 0,
-					dbx.Params{"id": src.Id},
-				)
+				// Multi-valued: see setsListingUploader.
+				remainingSets, err := setsListingUploader(txApp, src.Id, 1)
 				if err != nil {
 					return err
 				}
@@ -409,6 +415,18 @@ func mergeUploaders(app *pocketbase.PocketBase) func(*core.RequestEvent) error {
 			"aliases":      target.GetString("aliases"),
 		})
 	}
+}
+
+// setsListingUploader is the sets whose uploader list holds id, at most limit of
+// them (0 = all).
+//
+// The list is a JSON array, so the filter needs `:each` to compare its items: a
+// bare `uploader ?= {:id}` compares the whole column and matches no set at all,
+// which is how step 2 of the merge used to move nothing and the guard to wave
+// every source through. Not a LIKE either, which would also match an id that
+// merely contained this one.
+func setsListingUploader(app core.App, id string, limit int) ([]*core.Record, error) {
+	return app.FindRecordsByFilter("contents_sets", "uploader:each ?= {:id}", "created", limit, 0, dbx.Params{"id": id})
 }
 
 // uploaderNames is one record's name and alias list, as the merge reads them.
