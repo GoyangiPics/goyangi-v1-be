@@ -109,9 +109,10 @@ There are two ways to deploy:
 - **From your machine:** `railway link`, then `railway up` from the repo root,
   once per service (`railway up --service backend`, `--service worker`). This
   uploads the working tree. Use it while this work is still on `exp`.
-- **From GitHub:** connect `GoyangiPics/goyangi-v1-be` to both services on
-  `main`. Every push then deploys, which replaces the Windows updater. Connect
-  it with the GoyangiPics GitHub account. Do this after `exp` is merged.
+- **From GitHub:** connect `GoyangiPics/goyangi-v1-be` to both services, on
+  `exp` until it's merged and then on `main`. Every push to that branch
+  deploys both services, which replaces the Windows updater. Connect it with
+  the GoyangiPics GitHub account.
 
 A GitHub deploy stamps the commit into the binary, and boot logs it to
 `system_logs`. A `railway up` deploy reports `dev`.
