@@ -69,7 +69,10 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.healthz)
 	mux.HandleFunc("POST /encode", s.encode)
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(HeaderWorker, "1")
+		mux.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) authorized(r *http.Request) bool {

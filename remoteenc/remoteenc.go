@@ -24,9 +24,11 @@ package remoteenc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"regexp"
 	"slices"
@@ -50,6 +52,11 @@ const (
 	HeaderServed       = "X-Encode-Served"        // requests this worker process has served, this one included
 	HeaderSourceCached = "X-Encode-Source-Cached" // "1" when the source came from the worker's cache
 )
+
+// HeaderWorker is set on every response the worker itself writes, so the client
+// can tell the worker's own 502/504 (a failed R2 fetch, an ffmpeg timeout) from
+// the platform's while the worker is still booting.
+const HeaderWorker = "X-Encode-Worker"
 
 // Spec is one ffmpeg run: `ffmpeg <PreInput> -i <input> <Args> -y <output>`.
 type Spec struct {
@@ -95,21 +102,81 @@ type Client struct {
 	URL   string // base URL, no trailing slash
 	Token string
 	HTTP  *http.Client
+	// WakeTimeout bounds how long a call keeps retrying a worker that is
+	// still booting. Default 90s.
+	WakeTimeout time.Duration
+}
+
+const defaultWakeTimeout = 90 * time.Second
+
+// wakeBackoff is the first wait between wake-up retries; it doubles up to 5s.
+var wakeBackoff = 500 * time.Millisecond
+
+// do sends the request newReq builds, retrying while a sleeping worker wakes
+// (Railway serverless): until it is up, the connection is refused or the
+// platform answers 502/503/504 itself. newReq runs once per attempt, since a
+// streamed body can be read only once. Anything the worker answered is
+// returned as is — retrying its own errors would rerun a failed encode.
+func (c *Client) do(ctx context.Context, newReq func() (*http.Request, error)) (*http.Response, error) {
+	hc := c.HTTP
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+	wake := c.WakeTimeout
+	if wake <= 0 {
+		wake = defaultWakeTimeout
+	}
+	deadline := time.Now().Add(wake)
+	backoff := wakeBackoff
+	for {
+		req, err := newReq()
+		if err != nil {
+			return nil, err
+		}
+		resp, err := hc.Do(req)
+		if !waking(resp, err) || time.Now().Add(backoff).After(deadline) {
+			return resp, err
+		}
+		if resp != nil {
+			resp.Body.Close()
+		}
+		if req.Body != nil {
+			req.Body.Close() // ends a streaming body's writer
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, 5*time.Second)
+	}
+}
+
+// waking reports whether a call failed because the worker isn't up yet.
+func waking(resp *http.Response, err error) bool {
+	if err != nil {
+		var op *net.OpError
+		var dns *net.DNSError
+		return (errors.As(err, &op) && op.Op == "dial") || errors.As(err, &dns)
+	}
+	switch resp.StatusCode {
+	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return resp.Header.Get(HeaderWorker) == ""
+	}
+	return false
 }
 
 // Health calls GET /healthz and returns the worker's self-report (ffmpeg
 // version, CPUs, requests served) as JSON text.
 func (c *Client) Health(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.URL+"/healthz", nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	hc := c.HTTP
-	if hc == nil {
-		hc = http.DefaultClient
-	}
-	resp, err := hc.Do(req)
+	resp, err := c.do(ctx, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.URL+"/healthz", nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+		return req, nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -137,36 +204,35 @@ func (c *Client) Encode(ctx context.Context, spec Spec, input []byte) (*Result, 
 
 	// Streamed through a pipe: inputs run to ~100 MB, and buffering the whole
 	// multipart body would hold a second copy in memory.
-	pr, pw := io.Pipe()
-	mw := multipart.NewWriter(pw)
-	go func() {
-		err := mw.WriteField("spec", string(specJSON))
-		if err == nil && spec.SourceKey == "" {
-			var part io.Writer
-			if part, err = mw.CreateFormFile("input", "input"+spec.InExt); err == nil {
-				_, err = part.Write(input)
+	newReq := func() (*http.Request, error) {
+		pr, pw := io.Pipe()
+		mw := multipart.NewWriter(pw)
+		go func() {
+			err := mw.WriteField("spec", string(specJSON))
+			if err == nil && spec.SourceKey == "" {
+				var part io.Writer
+				if part, err = mw.CreateFormFile("input", "input"+spec.InExt); err == nil {
+					_, err = part.Write(input)
+				}
 			}
-		}
-		if err == nil {
-			err = mw.Close()
-		}
-		pw.CloseWithError(err)
-	}()
+			if err == nil {
+				err = mw.Close()
+			}
+			pw.CloseWithError(err)
+		}()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL+"/encode", pr)
-	if err != nil {
-		pr.Close()
-		return nil, err
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL+"/encode", pr)
+		if err != nil {
+			pr.Close()
+			return nil, err
+		}
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+		return req, nil
 	}
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+c.Token)
 
-	hc := c.HTTP
-	if hc == nil {
-		hc = http.DefaultClient
-	}
 	start := time.Now()
-	resp, err := hc.Do(req)
+	resp, err := c.do(ctx, newReq)
 	if err != nil {
 		return nil, fmt.Errorf("encode worker: %w", err)
 	}

@@ -89,20 +89,28 @@ func main() {
 		ReadHeaderTimeout: 30 * time.Second,
 	}
 
-	// On SIGTERM (redeploy, sleep) let in-flight encodes finish first.
+	// On SIGTERM (redeploy, sleep) let in-flight encodes finish first. main
+	// waits for that: ListenAndServe returns as soon as Shutdown starts.
+	// Railway kills the process after RAILWAY_DEPLOYMENT_DRAINING_SECONDS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	drained := make(chan struct{})
 	go func() {
+		defer close(drained)
 		<-ctx.Done()
+		log.Printf("🛑 encode worker: shutting down once in-flight encodes finish")
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
-		httpSrv.Shutdown(shutdown)
+		if err := httpSrv.Shutdown(shutdown); err != nil {
+			log.Printf("⚠️  encode worker: shutdown: %v", err)
+		}
 	}()
 
 	log.Printf("🛰️  encode worker listening on :%s", port)
 	if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
+	<-drained
 }
 
 // checkFFmpeg fails the boot when ffmpeg or a required encoder is missing — a
