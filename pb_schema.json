@@ -1294,6 +1294,31 @@
         "type": "relation"
       },
       {
+        "cascadeDelete": false,
+        "collectionId": "v1",
+        "hidden": false,
+        "id": "relation_previews_collections",
+        "maxSelect": 4,
+        "minSelect": 0,
+        "name": "previews",
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "relation"
+      },
+      {
+        "hidden": false,
+        "id": "number_contentcount_collections",
+        "max": null,
+        "min": null,
+        "name": "contentCount",
+        "onlyInt": true,
+        "presentable": false,
+        "required": false,
+        "system": false,
+        "type": "number"
+      },
+      {
         "hidden": false,
         "id": "autodate2990389176",
         "name": "created",

@@ -99,6 +99,9 @@ func main() {
 	// Blocks adding content to a collection the caller doesn't own. A hook
 	// rather than an API rule — rules can't see relation modifiers, see the file.
 	hooks.RegisterCollectionGuards(app)
+	// Thumbnails and a post count stored on each collection, so the public
+	// listing needn't scan every post's membership array (hooks/collection_previews.go).
+	hooks.RegisterCollectionPreviews(app)
 	// GDPR erasure on account deletion: anonymize the uploader credit, drop the
 	// public links rows and solely-owned collections the cascade leaves behind.
 	hooks.RegisterUserDeleteHooks(app)
