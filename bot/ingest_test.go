@@ -364,3 +364,57 @@ func TestPostedByNamesForAMention(t *testing.T) {
 		t.Errorf("postedByNames() = %v, want %v", got, want)
 	}
 }
+
+// The lookup is every name of the credit, each followed by its undecorated
+// form — what creditFromPostedBy and scripts/recreditrelay both try.
+func TestPostedByLookup(t *testing.T) {
+	msg := discord.Message{
+		Content:  "-# Posted by: <@1000000000000000042>",
+		Mentions: []discord.User{{ID: 1000000000000000042, Username: "kuro4810", GlobalName: ptr("kuro🍊")}},
+	}
+	posted, candidates := postedByLookup(msg)
+	if posted != "kuro🍊" {
+		t.Errorf("posted = %q, want %q", posted, "kuro🍊")
+	}
+	if want := []string{"kuro🍊", "kuro", "kuro4810"}; !slices.Equal(candidates, want) {
+		t.Errorf("candidates = %q, want %q", candidates, want)
+	}
+
+	if posted, candidates := postedByLookup(discord.Message{Content: "idol: Karina"}); posted != "" || candidates != nil {
+		t.Errorf("no line: got %q, %q; want nothing", posted, candidates)
+	}
+}
+
+// findUploaderByNames' matching, through the export a script uses: names in
+// order, each against every record, by name or alias, ignoring case and
+// surrounding space.
+func TestFindUploaderIn(t *testing.T) {
+	uploaders := []UploaderNames{
+		{Name: "kuro🍊"},
+		{Name: "Nabi", Aliases: " nabi.dev ,나비"},
+		{Name: "kuro"},
+		{Name: "", Aliases: "nameless"},
+	}
+	tests := []struct {
+		name  string
+		names []string
+		want  int
+	}{
+		{"exact name", []string{"kuro"}, 2},
+		{"case and space", []string{"  NABI "}, 1},
+		{"alias", []string{"NABI.DEV"}, 1},
+		{"non-latin alias", []string{"나비"}, 1},
+		{"an earlier name beats an earlier record", []string{"kuro", "kuro🍊"}, 2},
+		{"the decorated name, when it exists, wins", []string{"kuro🍊", "kuro"}, 0},
+		{"alias on a record with no name", []string{"nameless"}, 3},
+		{"empty names never match a nameless record", []string{"", "  "}, -1},
+		{"nobody", []string{"stranger"}, -1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FindUploaderIn(uploaders, tt.names...); got != tt.want {
+				t.Errorf("FindUploaderIn(%q) = %d, want %d", tt.names, got, tt.want)
+			}
+		})
+	}
+}

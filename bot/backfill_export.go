@@ -6,7 +6,8 @@ import (
 	"github.com/disgoorg/disgo/discord"
 )
 
-// The message-parsing half of ingestion, exported for scripts/backfilldiscord.
+// The message-parsing half of ingestion, exported for scripts/backfilldiscord
+// and scripts/recreditrelay.
 //
 // The backfill replays historical messages through the same decisions the live
 // bot makes — which links count as media, how an imgur link is normalised, how
@@ -47,6 +48,27 @@ func SplitTrim(s string) []string { return splitTrim(s) }
 // record's name and aliases.
 func MatchesAnyName(needle, name string, aliases []string) bool {
 	return matchesAnyName(needle, name, aliases)
+}
+
+// PostedByLookup is postedByLookup: a relay's "Posted by:" credit as written,
+// and the names creditFromPostedBy looks up for it, in order. Empty when the
+// message carries no such line.
+func PostedByLookup(m discord.Message) (posted string, candidates []string) {
+	return postedByLookup(m)
+}
+
+// UploaderNames is an uploaders record's name and raw comma-separated aliases,
+// for a caller that read the directory over the API.
+type UploaderNames struct{ Name, Aliases string }
+
+// FindUploaderIn is findUploaderByNames over uploaders the caller read itself:
+// the index of the first that answers to one of names, or -1. Pass them newest
+// first, the order findUploaderByNames reads them in, so a name two records
+// share resolves the same way.
+func FindUploaderIn(uploaders []UploaderNames, names ...string) int {
+	return firstAnswering(names, len(uploaders), func(i int) []string {
+		return answersTo(uploaders[i].Name, uploaders[i].Aliases)
+	})
 }
 
 // BotMentionedIn is botIsMentioned's content check for a message that didn't

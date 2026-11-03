@@ -2,6 +2,7 @@ package bot
 
 import (
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -88,18 +89,28 @@ func findUploaderByNames(names ...string) (*core.Record, error) {
 	if err != nil {
 		return nil, err
 	}
+	i := firstAnswering(names, len(records), func(i int) []string { return recordNames(records[i]) })
+	if i < 0 {
+		return nil, nil
+	}
+	return records[i], nil
+}
+
+// firstAnswering is findUploaderByNames' matching on its own: the index of the
+// first of n entries whose names (lowercased, as recordNames gives them) include
+// one of names, or -1. The names are tried in order, each against every entry,
+// so an earlier name wins over an earlier entry.
+func firstAnswering(names []string, n int, namesOf func(i int) []string) int {
 	for _, name := range names {
 		needle := strings.ToLower(strings.TrimSpace(name))
 		if needle == "" {
 			continue
 		}
-		for _, r := range records {
-			for _, candidate := range recordNames(r) {
-				if candidate == needle {
-					return r, nil
-				}
+		for i := range n {
+			if slices.Contains(namesOf(i), needle) {
+				return i
 			}
 		}
 	}
-	return nil, nil
+	return -1
 }

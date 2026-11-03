@@ -281,8 +281,14 @@ func namesByIDs(collection string, ids []string) []string {
 // for the same reason (see hooks/uploaders.go); a collection without it just
 // answers to its name.
 func recordNames(r *core.Record) []string {
-	names := []string{strings.ToLower(strings.TrimSpace(r.GetString("name")))}
-	for _, alias := range splitTrim(r.GetString("aliases")) {
+	return answersTo(r.GetString("name"), r.GetString("aliases"))
+}
+
+// answersTo is recordNames over the two fields themselves, for a record read
+// some other way than from the database.
+func answersTo(name, aliases string) []string {
+	names := []string{strings.ToLower(strings.TrimSpace(name))}
+	for _, alias := range splitTrim(aliases) {
 		if lowered := strings.ToLower(strings.TrimSpace(alias)); lowered != "" {
 			names = append(names, lowered)
 		}

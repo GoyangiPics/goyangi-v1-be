@@ -1087,6 +1087,22 @@ func postedByCandidates(name string) []string {
 	return candidates
 }
 
+// postedByLookup is a message's "Posted by:" credit as written, and the names
+// creditFromPostedBy looks up for it. Empty when the message carries no line.
+func postedByLookup(msg discord.Message) (posted string, candidates []string) {
+	names := postedByNames(msg)
+	if len(names) == 0 {
+		return "", nil
+	}
+	// Candidates are tried in order, so the exact name still wins when both a
+	// decorated and an undecorated profile exist, and a mention's display name
+	// before the handle behind it.
+	for _, n := range names {
+		candidates = append(candidates, postedByCandidates(n)...)
+	}
+	return names[0], candidates
+}
+
 // creditFromPostedBy resolves a relayed post's "Posted by:" line to an EXISTING
 // uploader and returns that record's canonical name.
 //
@@ -1101,17 +1117,9 @@ func postedByCandidates(name string) []string {
 // The canonical `name` is returned rather than the line's text so that
 // resolveRelations' lookupOrCreateByName lands on the same record.
 func creditFromPostedBy(msg discord.Message) (name string, ok bool) {
-	names := postedByNames(msg)
-	if len(names) == 0 {
+	posted, candidates := postedByLookup(msg)
+	if posted == "" {
 		return "", false
-	}
-	posted := names[0]
-	// Candidates are tried in order, so the exact name still wins when both a
-	// decorated and an undecorated profile exist, and a mention's display name
-	// before the handle behind it.
-	var candidates []string
-	for _, n := range names {
-		candidates = append(candidates, postedByCandidates(n)...)
 	}
 	rec, err := findUploaderByNames(candidates...)
 	if err != nil {
