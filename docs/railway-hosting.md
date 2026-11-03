@@ -83,7 +83,7 @@ the following:
 | `ENCODE_WORKER_TOKEN` | `${{worker.WORKER_TOKEN}}` |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | `600` |
 | `DISCORD_BOT_ENABLED` | `false` **until cutover**. Two bots on one token would ingest everything twice. |
-| `MAX_PROCESS_JOBS` | optional. The default of 1 is still right while uploads queue on the backend. Raise it toward `WORKER_MAX_JOBS` to encode several uploads at once. |
+| `MAX_PROCESS_JOBS` | `2`. An upload's animated WebP preview encodes on about one core, so with one upload at a time most of the worker sits idle during that step. With 2, the next upload's AV1 encode uses those idle cores. Its two MP4 encodes run in parallel, so 2 uploads fill the worker's 4 job slots (`WORKER_MAX_JOBS`). |
 
 Don't set `GOYANGI_SUPERVISED`, `GOYANGI_H264_ENCODER` or `GOYANGI_VAAPI_DEVICE`.
 They belong to the Windows host.
