@@ -1,0 +1,19 @@
+# Secrets and local data never go into an image build.
+.env
+pb_data/
+pb_migrations/
+backfill-work/
+
+# Not needed to build either service.
+.git/
+.claude/
+.deploy/
+logs/
+docs/
+myapp
+*.exe
+/goyangi
+/goyangi.next
+/goyangi.prev
+/goyangi-updater
+.DS_Store

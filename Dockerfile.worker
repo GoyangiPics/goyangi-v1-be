@@ -18,7 +18,8 @@ FROM debian:trixie-slim
 
 # FFmpeg 9.0 from BtbN's static builds (the Linux counterpart of the Gyan
 # builds the Windows host uses): no distro packages it yet — Alpine edge is on
-# 8.1. The "latest" release is rebuilt daily from the 9.0 branch, so patch
+# 8.1. The backend's Dockerfile installs the same build; keep the two in step.
+# The "latest" release is rebuilt daily from the 9.0 branch, so patch
 # releases arrive on the next image build; the boot log prints the exact
 # version. The download is checked against the release's own checksum file.
 #

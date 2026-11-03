@@ -23,6 +23,10 @@ to `cmd/encode-worker` on Railway instead.
 
 ## Railway setup
 
+This setup is for measuring from a local backend, so the worker gets a public
+domain. In production the backend runs on Railway too and reaches the worker
+over the private network, with no public domain. See docs/railway-hosting.md.
+
 1. New project → empty service, region **EU West (Amsterdam)**.
 2. Service variables:
 
