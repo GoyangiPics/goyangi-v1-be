@@ -19,6 +19,11 @@ import (
 // imgur link kept as `mirror`. Discord-ingested imgur links stay `discord`;
 // the bot is the provenance there, imgur just the host.
 //
+// `twitter` is the same kind of import from an X post: the upload page fetched
+// the post's media through the FxTwitter API instead of the uploader picking
+// files from disk. The post's link is the record's `source`, and that link is
+// the condition for the claim (see siteClaimsTwitter).
+//
 // `script` is `discord` with a handle on it: what scripts/backfilldiscord writes,
 // so a backfill can be inspected, relabelled to `discord` once trusted (the
 // script's -relabel mode), or removed wholesale if not. Nothing else writes it,
@@ -27,6 +32,7 @@ const (
 	OriginDirect  = "direct"
 	OriginDiscord = "discord"
 	OriginImgur   = "imgur"
+	OriginTwitter = "twitter"
 	OriginScript  = "script"
 )
 
@@ -44,6 +50,40 @@ func isImgurMirror(mirror string) bool {
 	}
 	host := strings.ToLower(u.Hostname())
 	return host == "imgur.com" || strings.HasSuffix(host, ".imgur.com")
+}
+
+// isXStatusURL reports whether a link is an X (Twitter) post:
+// https://x.com/<user>/status/<id>, or the same on twitter.com.
+func isXStatusURL(link string) bool {
+	u, err := url.Parse(strings.TrimSpace(link))
+	if err != nil {
+		return false
+	}
+	switch strings.TrimPrefix(strings.TrimPrefix(strings.ToLower(u.Hostname()), "www."), "mobile.") {
+	case "x.com", "twitter.com":
+	default:
+		return false
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 3 || parts[0] == "" || parts[1] != "status" || parts[2] == "" {
+		return false
+	}
+	for _, r := range parts[2] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// siteClaimsTwitter reports whether a site upload says it was imported from an
+// X post and backs that with the post as its `source`.
+//
+// The one claim a site user may make on a post, and a cosmetic one: it decides
+// a chip and a filter value, nothing about access. Without the link there is
+// nothing to back it, and it is ignored like any other claim.
+func siteClaimsTwitter(record *core.Record) bool {
+	return record.GetString("origin") == OriginTwitter && isXStatusURL(record.GetString("source"))
 }
 
 // apiOrigin is the provenance of a record arriving over the API: an import if
@@ -71,7 +111,7 @@ func ensureOriginValues(app *pocketbase.PocketBase) error {
 			return fmt.Errorf("%s.origin is not a select field", name)
 		}
 		var added []string
-		for _, want := range []string{OriginImgur, OriginScript} {
+		for _, want := range []string{OriginImgur, OriginScript, OriginTwitter} {
 			has := false
 			for _, v := range field.Values {
 				if v == want {
@@ -115,32 +155,41 @@ func RegisterOriginHooks(app *pocketbase.PocketBase) {
 		}
 		return nil
 	})
+	bindOriginHooks(app)
+}
+
+// bindOriginHooks is the request and model half, split out so tests can bind
+// it on a test app without the bootstrap step.
+func bindOriginHooks(app core.App) {
 
 	// OnRecordCreateRequest fires around the API handler, i.e. BEFORE the
 	// model-level OnRecordCreate below. Anything arriving over the API is a site
 	// upload by definition — direct, or an imgur import, told apart by `mirror`,
 	// which the upload page sets only for imports. The caller's own claim is
-	// ignored — with one exception: a SUPERUSER may claim "discord" or "script"
-	// for a record that carries a Discord jump link (provenance.go explains who
-	// and why).
+	// ignored, with two exceptions: an X import, backed by the post as `source`
+	// (siteClaimsTwitter), and a SUPERUSER's "discord" or "script" for a record
+	// that carries a Discord jump link (provenance.go explains who and why).
 	app.OnRecordCreateRequest("contents").BindFunc(func(e *core.RecordRequestEvent) error {
-		if claimed := claimedOrigin(e); claimed != "" && e.Record.GetString("discord") != "" {
+		switch claimed := claimedOrigin(e); {
+		case claimed != "" && e.Record.GetString("discord") != "":
 			e.Record.Set("origin", claimed)
-		} else {
+		case siteClaimsTwitter(e.Record):
+			e.Record.Set("origin", OriginTwitter)
+		default:
 			e.Record.Set("origin", apiOrigin(e.Record))
 		}
 		return e.Next()
 	})
 
 	// A set has no mirror to read, so the upload page says which kind of batch
-	// it is. Only "imgur" is accepted from the caller; anything else is a direct
-	// upload, and "discord" in particular stays the bot's to claim — and the
+	// it is. Only "imgur" and "twitter" are accepted from the caller; anything
+	// else is a direct upload, and "discord" in particular stays the bot's to claim — and the
 	// superuser's (provenance.go), since a set has no link of its own to check.
 	app.OnRecordCreateRequest("contents_sets").BindFunc(func(e *core.RecordRequestEvent) error {
 		switch claimed := claimedOrigin(e); {
 		case claimed != "":
 			e.Record.Set("origin", claimed)
-		case e.Record.GetString("origin") != OriginImgur:
+		case e.Record.GetString("origin") != OriginImgur && e.Record.GetString("origin") != OriginTwitter:
 			e.Record.Set("origin", OriginDirect)
 		}
 		return e.Next()
